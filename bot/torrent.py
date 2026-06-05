@@ -19,17 +19,53 @@ def _ensure_logged_in() -> bool:
             data={"username": settings.qb_user, "password": settings.qb_pass},
             timeout=5,
         )
-        return r.status_code == 200 and "SID" in _session.cookies.get_dict()
+        if r.status_code not in (200, 204):
+            return False
+        if "SID" in _session.cookies.get_dict():
+            return True
+        api_check = _session.get(f"{settings.qb_url}/api/v2/app/version", timeout=5)
+        return api_check.ok
     except Exception:
         return False
 
+
+def _ensure_category_path(category: str | None) -> bool:
+    if not category:
+        return True
+
+    settings = get_settings()
+    save_path = settings.qb_category_paths.get(category)
+    if not save_path:
+        return True
+
+    data = {"category": category, "savePath": save_path}
+    try:
+        create = _session.post(
+            f"{settings.qb_url}/api/v2/torrents/createCategory",
+            data=data,
+            timeout=5,
+        )
+        if create.status_code not in (200, 204, 409):
+            return False
+        edit = _session.post(
+            f"{settings.qb_url}/api/v2/torrents/editCategory",
+            data=data,
+            timeout=5,
+        )
+        return edit.status_code in (200, 204)
+    except Exception:
+        return False
+
+
 def add_torrent(magnet: str, category: str | None = None) -> bool:
     """
-    Add a magnet to qBittorrent, optional category.
+    Add a magnet or torrent download URL to qBittorrent, optional category.
     """
-    if not magnet or not magnet.startswith("magnet:"):
+    if not magnet or not magnet.startswith(("magnet:", "http://", "https://")):
         return False
     if not _ensure_logged_in():
+        return False
+    if not _ensure_category_path(category):
         return False
     data = {"urls": magnet}
     if category:

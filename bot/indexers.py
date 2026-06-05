@@ -35,20 +35,40 @@ def search_torrents(query: str, max_results: int = 10) -> list[dict]:
 def search_prowlarr(query: str, max_results: int = 10) -> list[dict]:
     settings = get_settings()
     prowlarr_url = settings.prowlarr_url.rstrip("/")
-    indexer = settings.prowlarr_default_indexer.strip("/") or "all"
     api_key = settings.prowlarr_api_key
-    if not prowlarr_url or not api_key or not indexer:
+    if not prowlarr_url or not api_key:
         return []
 
-    url = f"{prowlarr_url}/{indexer}/api"
-    params = {"apikey": api_key, "t": "search", "q": query}
+    url = f"{prowlarr_url}/api/v1/search"
+    params = {"query": query, "type": "search"}
+    headers = {"X-Api-Key": api_key}
     try:
-        response = requests.get(url, params=params, timeout=8)
+        response = requests.get(url, headers=headers, params=params, timeout=8)
         if not response.ok:
             return []
-        return normalize_torznab_results(response.text, max_results=max_results)
+        return normalize_prowlarr_results(response.json(), max_results=max_results)
     except Exception:
         return []
+
+
+def normalize_prowlarr_results(items: list[dict], max_results: int = 10) -> list[dict]:
+    results = []
+    for item in items:
+        download_url = item.get("magnetUrl") or item.get("downloadUrl")
+        if not download_url:
+            continue
+        results.append(
+            {
+                "title": item.get("title", ""),
+                "size": int(item.get("size") or 0) // (1024 * 1024),
+                "seeders": int(item.get("seeders") or item.get("grabs") or 0),
+                "tracker": item.get("indexer", ""),
+                "magnet": download_url,
+            }
+        )
+        if len(results) >= max_results:
+            break
+    return results
 
 
 def normalize_torznab_results(xml_text: str, max_results: int = 10) -> list[dict]:

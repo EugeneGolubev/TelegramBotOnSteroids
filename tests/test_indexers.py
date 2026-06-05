@@ -11,44 +11,39 @@ def test_select_indexer_provider_prefers_prowlarr(monkeypatch):
 
 
 def test_select_indexer_provider_falls_back_to_jackett(monkeypatch):
-    monkeypatch.delenv("PROWLARR_API_KEY", raising=False)
+    monkeypatch.setenv("PROWLARR_API_KEY", "")
     monkeypatch.setenv("JACKETT_API_KEY", "jackett-key")
 
     assert indexers.select_indexer_provider() == "jackett"
 
 
-def test_select_indexer_provider_falls_back_to_legacy_jackett_json(monkeypatch, tmp_path):
-    legacy_path = tmp_path / "config.json"
-    legacy_path.write_text('{"jackett_api_key": "legacy-key"}', encoding="utf-8")
-    monkeypatch.delenv("PROWLARR_API_KEY", raising=False)
-    monkeypatch.delenv("JACKETT_API_KEY", raising=False)
-    monkeypatch.setenv("JACKETT_CONFIG_PATH", str(legacy_path))
+def test_select_indexer_provider_falls_back_to_legacy_jackett_json(monkeypatch):
+    monkeypatch.setenv("PROWLARR_API_KEY", "")
+    monkeypatch.setenv("JACKETT_API_KEY", "")
+    monkeypatch.setattr(indexers.jackett, "load_config", lambda: {"jackett_api_key": "legacy-key"})
 
     assert indexers.select_indexer_provider() == "jackett"
 
 
-def test_search_prowlarr_uses_torznab_endpoint_and_normalizes_results(monkeypatch):
+def test_search_prowlarr_uses_api_search_and_normalizes_results(monkeypatch):
     monkeypatch.setenv("PROWLARR_URL", "http://prowlarr:9696")
     monkeypatch.setenv("PROWLARR_API_KEY", "secret-key")
     monkeypatch.setenv("PROWLARR_DEFAULT_INDEXER", "all")
 
-    xml = """<?xml version="1.0" encoding="UTF-8"?>
-    <rss xmlns:torznab="http://torznab.com/schemas/2015/feed">
-      <channel>
-        <item>
-          <title>Test Torrent</title>
-          <link>magnet:?xt=urn:btih:test</link>
-          <size>104857600</size>
-          <torznab:attr name="seeders" value="42" />
-          <torznab:attr name="tracker" value="Indexer One" />
-        </item>
-      </channel>
-    </rss>
-    """
-    response = MagicMock(ok=True, text=xml)
+    payload = [
+        {
+            "title": "Test Torrent",
+            "downloadUrl": "http://prowlarr:9696/1/download?apikey=redacted",
+            "size": 104857600,
+            "seeders": 42,
+            "indexer": "Indexer One",
+        }
+    ]
+    response = MagicMock(ok=True)
+    response.json.return_value = payload
     calls = []
 
-    def fake_get(url, params, timeout):
+    def fake_get(url, headers, params, timeout):
         calls.append((url, params, timeout))
         return response
 
@@ -58,8 +53,8 @@ def test_search_prowlarr_uses_torznab_endpoint_and_normalizes_results(monkeypatc
 
     assert calls == [
         (
-            "http://prowlarr:9696/all/api",
-            {"apikey": "secret-key", "t": "search", "q": "ubuntu"},
+            "http://prowlarr:9696/api/v1/search",
+            {"query": "ubuntu", "type": "search"},
             8,
         )
     ]
@@ -69,13 +64,13 @@ def test_search_prowlarr_uses_torznab_endpoint_and_normalizes_results(monkeypatc
             "size": 100,
             "seeders": 42,
             "tracker": "Indexer One",
-            "magnet": "magnet:?xt=urn:btih:test",
+            "magnet": "http://prowlarr:9696/1/download?apikey=redacted",
         }
     ]
 
 
 def test_search_torrents_uses_jackett_fallback(monkeypatch):
-    monkeypatch.delenv("PROWLARR_API_KEY", raising=False)
+    monkeypatch.setenv("PROWLARR_API_KEY", "")
     monkeypatch.setenv("JACKETT_API_KEY", "jackett-key")
     monkeypatch.setattr(indexers.jackett, "search_torrents", lambda q, max_results=10: [{"title": q}])
 

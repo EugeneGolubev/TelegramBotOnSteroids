@@ -113,11 +113,23 @@ Start with Watchtower:
 docker compose --profile updates up -d
 ```
 
-The qBittorrent Web UI is exposed on `QB_WEBUI_PORT` through the `vpn` service. Persistent service data is stored under `data/`, and downloads are stored under `downloads/`; both folders are ignored by git.
+The qBittorrent Web UI is exposed on `QB_WEBUI_PORT` through the `vpn` service. Persistent service data is stored under `data/`. Downloads are mounted from `DOWNLOADS_HOST_PATH` on the host into `DOWNLOADS_PATH` inside the containers; by default this is `./downloads` on the host and `/downloads` in containers. Both `data/` and the default `downloads/` folder are ignored by git.
+
+qBittorrent categories control the final media subfolders:
+
+```env
+QB_CATEGORY_MOVIE_PATH=/downloads/Movie
+QB_CATEGORY_TV_PATH=/downloads/TV
+QB_CATEGORY_OTHERS_PATH=/downloads/Others
+```
+
+For example, with `DOWNLOADS_HOST_PATH=D:/Downloads` and `QB_CATEGORY_MOVIE_PATH=/downloads/Movies`, movies are saved under `D:\Downloads\Movies`. On the Raspberry Pi, `DOWNLOADS_HOST_PATH=/var/lib/plexmediaserver/Library/plex_media` maps `/downloads/TV` to `/var/lib/plexmediaserver/Library/plex_media/TV`.
+
+qBittorrent's completion hook should run `/scripts/run_post_download.sh "%N"`. The hook sends the optional Telegram notification and deletes completed torrent entries while keeping downloaded files.
 
 ## Indexers
 
-The bot now uses a small indexer abstraction. Prowlarr is preferred when `PROWLARR_API_KEY` is set, using a Torznab-style endpoint built from `PROWLARR_URL` and `PROWLARR_DEFAULT_INDEXER`.
+The bot now uses a small indexer abstraction. Prowlarr is preferred when `PROWLARR_API_KEY` is set, using Prowlarr's JSON search API at `${PROWLARR_URL}/api/v1/search`. Prowlarr results may provide magnet links or Prowlarr download URLs; both are accepted by qBittorrent.
 
 Jackett remains available as a legacy fallback when Prowlarr is not configured. Existing Jackett search behavior is preserved, including the temporary `JACKETT_CONFIG_PATH` JSON fallback during migration.
 

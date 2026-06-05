@@ -19,6 +19,9 @@ CONFIG_ENV_KEYS = (
     "QB_URL",
     "QB_USER",
     "QB_PASS",
+    "QB_CATEGORY_MOVIE_PATH",
+    "QB_CATEGORY_TV_PATH",
+    "QB_CATEGORY_OTHERS_PATH",
     "PROWLARR_URL",
     "PROWLARR_API_KEY",
     "PROWLARR_DEFAULT_INDEXER",
@@ -87,6 +90,11 @@ def test_get_settings_uses_portable_defaults():
 
     assert settings.qb_url == "http://vpn:8080"
     assert settings.downloads_path == "/downloads"
+    assert settings.qb_category_paths == {
+        "Movie": "/downloads/Movie",
+        "TV": "/downloads/TV",
+        "Others": "/downloads/Others",
+    }
     assert settings.prowlarr_url == "http://prowlarr:9696"
     assert settings.prowlarr_default_indexer == "all"
     assert settings.jackett_url == "http://jackett:9117"

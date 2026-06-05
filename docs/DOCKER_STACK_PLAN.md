@@ -62,7 +62,13 @@ Networking:
 Persistence:
 
 - Config under `data/qbittorrent/`.
-- Downloads under `downloads/`.
+- Downloads mounted from `DOWNLOADS_HOST_PATH` to `/downloads`.
+- Category save paths keep media separated, for example `/downloads/Movie`, `/downloads/TV`, and `/downloads/Others`.
+
+Operations:
+
+- qBittorrent completion hooks can run `/scripts/run_post_download.sh "%N"`.
+- The hook deletes completed torrent entries with `deleteFiles=false`, so downloaded files remain in their category folders.
 
 Selected initial image:
 
@@ -170,9 +176,26 @@ data/
   prowlarr/
   jackett/
 downloads/
+  Movie/
+  TV/
+  Others/
 ```
 
-These folders should be ignored by git. A host migration should preserve `.env`, `data/`, and `downloads/`.
+These folders should be ignored by git. A host migration should preserve `.env`, `data/`, and the host directory named by `DOWNLOADS_HOST_PATH`.
+
+Examples:
+
+```env
+# Windows
+DOWNLOADS_HOST_PATH=D:/Downloads
+QB_CATEGORY_MOVIE_PATH=/downloads/Movies
+
+# Raspberry Pi with host-installed Plex
+DOWNLOADS_HOST_PATH=/var/lib/plexmediaserver/Library/plex_media
+QB_CATEGORY_MOVIE_PATH=/downloads/Movie
+QB_CATEGORY_TV_PATH=/downloads/TV
+QB_CATEGORY_OTHERS_PATH=/downloads/Others
+```
 
 ## Open Decisions
 

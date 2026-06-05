@@ -8,7 +8,10 @@ ROOT_ENV_PATH="$PROJECT_ROOT/.env"
 SCRIPT_ENV_PATH="$SCRIPT_DIR/.env"
 
 # Load the repo-root .env first; keep old locations as migration fallbacks.
-if [ -f "$ROOT_ENV_PATH" ]; then
+# In Docker, Compose can provide these values directly as environment variables.
+if [[ -n "${QB_URL:-}" && -n "${QB_USER:-}" && -n "${QB_PASS:-}" ]]; then
+    :
+elif [ -f "$ROOT_ENV_PATH" ]; then
     source "$ROOT_ENV_PATH"
 elif [ -f "$BOT_ENV_PATH" ]; then
     source "$BOT_ENV_PATH"

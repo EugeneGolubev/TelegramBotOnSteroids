@@ -16,10 +16,59 @@ def test_add_torrent_valid_magnet(monkeypatch):
 
     result = torrent.add_torrent("magnet:?xt=urn:btih:example", "TV")
     assert result is True
+    mock_post.assert_any_call(
+        "http://127.0.0.1:4545/api/v2/torrents/createCategory",
+        data={"category": "TV", "savePath": "/downloads/TV"},
+        timeout=5,
+    )
+    mock_post.assert_any_call(
+        "http://127.0.0.1:4545/api/v2/torrents/editCategory",
+        data={"category": "TV", "savePath": "/downloads/TV"},
+        timeout=5,
+    )
+    mock_post.assert_any_call(
+        "http://127.0.0.1:4545/api/v2/torrents/add",
+        data={"urls": "magnet:?xt=urn:btih:example", "category": "TV"},
+        timeout=5,
+    )
 
 def test_add_torrent_invalid_magnet():
-    result = torrent.add_torrent("http://notamagnet", "TV")
+    result = torrent.add_torrent("ftp://not-a-supported-source", "TV")
     assert result is False
+
+def test_add_torrent_accepts_http_download_url(monkeypatch):
+    mock_post = MagicMock(return_value=MagicMock(status_code=200))
+    monkeypatch.setattr(torrent._session, "post", mock_post)
+    monkeypatch.setattr(torrent, "_ensure_logged_in", lambda: True)
+
+    result = torrent.add_torrent("http://prowlarr:9696/1/download?apikey=redacted", "Movie")
+
+    assert result is True
+
+
+def test_add_torrent_uses_custom_category_path(monkeypatch):
+    monkeypatch.setenv("QB_CATEGORY_MOVIE_PATH", "/downloads/Movies")
+    mock_post = MagicMock(return_value=MagicMock(status_code=200))
+    monkeypatch.setattr(torrent._session, "post", mock_post)
+    monkeypatch.setattr(torrent, "_ensure_logged_in", lambda: True)
+
+    result = torrent.add_torrent("magnet:?xt=urn:btih:example", "Movie")
+
+    assert result is True
+    mock_post.assert_any_call(
+        "http://127.0.0.1:4545/api/v2/torrents/createCategory",
+        data={"category": "Movie", "savePath": "/downloads/Movies"},
+        timeout=5,
+    )
+
+def test_qb_health_accepts_no_content_login_without_sid(monkeypatch):
+    torrent._session.cookies.clear()
+    mock_post = MagicMock(return_value=MagicMock(status_code=204, text=""))
+    mock_get = MagicMock(return_value=MagicMock(ok=True, text="v5.2.1"))
+    monkeypatch.setattr(torrent._session, "post", mock_post)
+    monkeypatch.setattr(torrent._session, "get", mock_get)
+
+    assert torrent.qb_health() is True
 
 def test_qb_list_pending_torrents_filters_properly(monkeypatch):
     test_data = [

@@ -22,7 +22,9 @@ services:
       JACKETT_CONFIG_PATH: ${JACKETT_CONFIG_PATH:-config.sample.json}
     volumes:
       - ./data/bot:/app/data
-      - ./downloads:/downloads
+      - type: bind
+        source: ${DOWNLOADS_HOST_PATH:-./downloads}
+        target: /downloads
     depends_on:
       - vpn
       - qbittorrent
@@ -64,9 +66,18 @@ services:
       TZ: ${TZ:-Europe/Warsaw}
       WEBUI_PORT: 8080
       TORRENTING_PORT: ${QB_TORRENT_PORT:-6881}
+      BOT_TOKEN: ${BOT_TOKEN:-}
+      ALLOWED_CHAT_ID: ${ALLOWED_CHAT_ID:-}
+      NOTIFY_CHAT_ID: ${NOTIFY_CHAT_ID:-}
+      QBT_DELETE_DELAY: ${QBT_DELETE_DELAY:-15}
+      QB_URL: ${QB_AUTORUN_QB_URL:-http://127.0.0.1:8080}
+      QB_USER: ${QB_USER:-}
+      QB_PASS: ${QB_PASS:-}
     volumes:
       - ./data/qbittorrent:/config
-      - ./downloads:/downloads
+      - type: bind
+        source: ${DOWNLOADS_HOST_PATH:-./downloads}
+        target: /downloads
       - ./scripts:/scripts:ro
     depends_on:
       - vpn
@@ -98,7 +109,9 @@ services:
       - "${JACKETT_PORT:-9117}:9117"
     volumes:
       - ./data/jackett:/config
-      - ./downloads:/downloads
+      - type: bind
+        source: ${DOWNLOADS_HOST_PATH:-./downloads}
+        target: /downloads
     restart: unless-stopped
 
   watchtower:

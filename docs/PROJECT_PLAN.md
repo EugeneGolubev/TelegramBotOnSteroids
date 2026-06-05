@@ -93,6 +93,8 @@ Implementation notes:
 - `watchtower` is behind the `updates` profile.
 - qBittorrent has no direct published ports because it shares the VPN container network namespace.
 - VPN settings are placeholder-friendly and currently target Gluetun; the user must fill provider/protocol-specific values in `.env`.
+- `DOWNLOADS_HOST_PATH` controls the host download mount while containers use `/downloads`.
+- qBittorrent receives the environment needed by post-download hooks, including `QB_AUTORUN_QB_URL`, qBittorrent credentials, Telegram notification settings, and `QBT_DELETE_DELAY`.
 
 ## Phase 4: Indexer Migration
 
@@ -105,7 +107,7 @@ Goals:
 
 Planned actions:
 
-1. Decide whether the bot should talk directly to Prowlarr/Torznab. Done: the bot uses Prowlarr-compatible Torznab RSS/XML search.
+1. Decide whether the bot should talk directly to Prowlarr. Done: the bot uses Prowlarr's JSON search API.
 2. Add a provider abstraction if needed. Done in `bot/indexers.py`.
 3. Update search result normalization. Done; handlers still receive `title`, `size`, `seeders`, `tracker`, and `magnet`.
 4. Add tests for Prowlarr and/or Jackett behavior. Done in `tests/test_indexers.py`.
@@ -116,7 +118,8 @@ Implementation notes:
 - Prowlarr is selected when `PROWLARR_API_KEY` is present.
 - Jackett is selected when Prowlarr is not configured and Jackett settings are available, including the temporary legacy JSON fallback.
 - `bot.handlers` now imports search through `bot.indexers` instead of directly from `bot.jackett`.
-- The Prowlarr endpoint is built as `${PROWLARR_URL}/${PROWLARR_DEFAULT_INDEXER}/api` with Torznab search parameters.
+- The Prowlarr endpoint is `${PROWLARR_URL}/api/v1/search` with the API key sent in the `X-Api-Key` header.
+- Prowlarr `magnetUrl` and `downloadUrl` results are both accepted by the qBittorrent add flow.
 
 ## Phase 5: Bot Enhancements
 
@@ -139,6 +142,8 @@ Implementation notes:
 - `/status` now reports qBittorrent API health, Prowlarr reachability, Telegram API reachability, and container-safe disk/RAM/CPU information.
 - `/status` no longer relies on host `systemctl` service checks as its primary health signal.
 - Jackett appears in `/status` only when `JACKETT_API_KEY` is configured.
+- The bot ensures qBittorrent category save paths for `Movie`, `TV`, and `Others` before adding torrents.
+- qBittorrent completion hooks can delete completed torrent entries while keeping downloaded files.
 
 ## Phase 6: Operations
 
