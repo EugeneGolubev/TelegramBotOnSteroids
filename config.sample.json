@@ -1,0 +1,6 @@
+{
+  "jackett_api_key": "YOUR_JACKETT_API_KEY",
+  "jackett_url": "http://127.0.0.1:9117",
+  "default_indexer": "all"
+}
+

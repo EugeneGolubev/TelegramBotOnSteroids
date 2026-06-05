@@ -1,0 +1,115 @@
+services:
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegram-bot
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN:-}
+      AUTHORIZED_USER_ID: ${AUTHORIZED_USER_ID:-}
+      ALLOWED_CHAT_ID: ${ALLOWED_CHAT_ID:-}
+      TZ: ${TZ:-Europe/Warsaw}
+      DOWNLOADS_PATH: ${DOWNLOADS_PATH:-/downloads}
+      QB_URL: ${QB_URL:-http://vpn:8080}
+      QB_USER: ${QB_USER:-}
+      QB_PASS: ${QB_PASS:-}
+      PROWLARR_URL: ${PROWLARR_URL:-http://prowlarr:9696}
+      PROWLARR_API_KEY: ${PROWLARR_API_KEY:-}
+      PROWLARR_DEFAULT_INDEXER: ${PROWLARR_DEFAULT_INDEXER:-all}
+      JACKETT_URL: ${JACKETT_URL:-http://jackett:9117}
+      JACKETT_API_KEY: ${JACKETT_API_KEY:-}
+      JACKETT_DEFAULT_INDEXER: ${JACKETT_DEFAULT_INDEXER:-all}
+      JACKETT_CONFIG_PATH: ${JACKETT_CONFIG_PATH:-config.sample.json}
+    volumes:
+      - ./data/bot:/app/data
+      - ./downloads:/downloads
+    depends_on:
+      - vpn
+      - qbittorrent
+      - prowlarr
+    restart: unless-stopped
+
+  vpn:
+    image: qmcgaw/gluetun:latest
+    container_name: vpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      TZ: ${TZ:-Europe/Warsaw}
+      VPN_SERVICE_PROVIDER: ${VPN_PROVIDER:-}
+      VPN_TYPE: ${VPN_TYPE:-openvpn}
+      OPENVPN_USER: ${VPN_USERNAME:-}
+      OPENVPN_PASSWORD: ${VPN_PASSWORD:-}
+      WIREGUARD_PRIVATE_KEY: ${VPN_WIREGUARD_PRIVATE_KEY:-}
+      WIREGUARD_ADDRESSES: ${VPN_WIREGUARD_ADDRESSES:-}
+      SERVER_COUNTRIES: ${VPN_SERVER_COUNTRIES:-}
+      FIREWALL_OUTBOUND_SUBNETS: ${VPN_FIREWALL_OUTBOUND_SUBNETS:-}
+    ports:
+      - "${QB_WEBUI_PORT:-8080}:8080"
+      - "${QB_TORRENT_PORT:-6881}:6881/tcp"
+      - "${QB_TORRENT_PORT:-6881}:6881/udp"
+    volumes:
+      - ./data/vpn:/gluetun
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: service:vpn
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Europe/Warsaw}
+      WEBUI_PORT: 8080
+      TORRENTING_PORT: ${QB_TORRENT_PORT:-6881}
+    volumes:
+      - ./data/qbittorrent:/config
+      - ./downloads:/downloads
+      - ./scripts:/scripts:ro
+    depends_on:
+      - vpn
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Europe/Warsaw}
+    ports:
+      - "${PROWLARR_PORT:-9696}:9696"
+    volumes:
+      - ./data/prowlarr:/config
+    restart: unless-stopped
+
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    profiles:
+      - legacy-indexer
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Europe/Warsaw}
+    ports:
+      - "${JACKETT_PORT:-9117}:9117"
+    volumes:
+      - ./data/jackett:/config
+      - ./downloads:/downloads
+    restart: unless-stopped
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    profiles:
+      - updates
+    environment:
+      TZ: ${TZ:-Europe/Warsaw}
+      WATCHTOWER_CLEANUP: ${WATCHTOWER_CLEANUP:-true}
+      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-86400}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped

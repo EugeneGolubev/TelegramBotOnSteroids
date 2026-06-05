@@ -1,0 +1,25 @@
+# Ignore virtual environment
+mybotenv/
+venv/
+.venv/
+.idea/
+
+# Ignore Python cache
+__pycache__/
+
+# Ignore config with credentials
+config.json
+.env
+.env.*
+!.env.example
+data/
+downloads/
+
+# Ignore system files
+*.log
+htmlcov/
+.coverage
+.pytest_cache/
+scripts/post_download.log
+scripts/cookies.txt
+test_output.log
