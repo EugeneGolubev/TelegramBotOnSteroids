@@ -27,6 +27,7 @@ def test_load_config_uses_legacy_json_for_missing_api_key(monkeypatch, tmp_path)
         '{"jackett_url": "http://legacy:9117", "jackett_api_key": "legacy-key", "default_indexer": "legacy"}',
         encoding="utf-8",
     )
+    monkeypatch.setattr("bot.config.load_root_dotenv", lambda *args, **kwargs: False)
     monkeypatch.delenv("JACKETT_API_KEY", raising=False)
     monkeypatch.delenv("JACKETT_URL", raising=False)
     monkeypatch.delenv("JACKETT_DEFAULT_INDEXER", raising=False)

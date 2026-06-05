@@ -75,3 +75,16 @@ def test_post_download_hooks_prefer_root_env():
         assert content.index('[ -f "$ROOT_ENV_PATH" ]') < content.index('[ -f "$BOT_ENV_PATH" ]')
         assert content.index('[ -f "$BOT_ENV_PATH" ]') < content.index('[ -f "$SCRIPT_ENV_PATH" ]')
         assert "/opt/telegrambot" not in content
+
+
+def test_post_download_hooks_do_not_log_to_read_only_scripts_dir():
+    for script_name in ("notify_complete.sh", "run_post_download.sh"):
+        content = (PROJECT_ROOT / "scripts" / script_name).read_text(encoding="utf-8")
+        assert "/config/post_download.log" in content
+        assert 'LOG_FILE="${POST_DOWNLOAD_LOG_FILE:-$DEFAULT_LOG_FILE}"' in content
+
+
+def test_run_post_download_continues_when_notification_fails():
+    content = (PROJECT_ROOT / "scripts" / "run_post_download.sh").read_text(encoding="utf-8")
+    assert '"$SCRIPT_DIR/notify_complete.sh" "${1:-Unknown}" ||' in content
+    assert content.index('"$SCRIPT_DIR/notify_complete.sh" "${1:-Unknown}" ||') < content.index('"$SCRIPT_DIR/delete_completed.sh"')

@@ -30,10 +30,21 @@ BOT_TOKEN="${BOT_TOKEN:-}"
 CHAT_ID="${NOTIFY_CHAT_ID:-${ALLOWED_CHAT_ID:-}}"
 
 TORRENT_NAME="${1:-Unknown}"
-LOG_FILE="$SCRIPT_DIR/post_download.log"
+DEFAULT_LOG_FILE="/config/post_download.log"
+if [[ ! -d /config ]]; then
+  DEFAULT_LOG_FILE="$SCRIPT_DIR/post_download.log"
+fi
+LOG_FILE="${POST_DOWNLOAD_LOG_FILE:-$DEFAULT_LOG_FILE}"
+
+log() {
+  local message="$1"
+  if ! echo "$(date) $message" >> "$LOG_FILE" 2>/dev/null; then
+    echo "$(date) $message" >&2
+  fi
+}
 
 if [[ -z "${BOT_TOKEN}" || -z "${CHAT_ID}" ]]; then
-  echo "$(date) [notify_complete] Missing BOT_TOKEN or NOTIFY_CHAT_ID/ALLOWED_CHAT_ID" >> "$LOG_FILE"
+  log "[notify_complete] Missing BOT_TOKEN or NOTIFY_CHAT_ID/ALLOWED_CHAT_ID"
   exit 0
 fi
 
@@ -44,4 +55,4 @@ curl -fsS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
   -d "chat_id=${CHAT_ID}" \
   --data-urlencode "text=${MESSAGE}" >/dev/null
 
-echo "$(date) [notify_complete] Notified ${CHAT_ID} about '${TORRENT_NAME}'" >> "$LOG_FILE"
+log "[notify_complete] Notified ${CHAT_ID} about '${TORRENT_NAME}'"
