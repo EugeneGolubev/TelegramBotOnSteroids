@@ -88,3 +88,22 @@ def test_run_post_download_continues_when_notification_fails():
     content = (PROJECT_ROOT / "scripts" / "run_post_download.sh").read_text(encoding="utf-8")
     assert '"$SCRIPT_DIR/notify_complete.sh" "${1:-Unknown}" ||' in content
     assert content.index('"$SCRIPT_DIR/notify_complete.sh" "${1:-Unknown}" ||') < content.index('"$SCRIPT_DIR/delete_completed.sh"')
+
+
+def test_post_download_hook_uses_bash_and_passes_hash():
+    content = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    assert 'bash /scripts/run_post_download.sh "%N" "%I"' in content
+
+
+def test_run_post_download_uses_bash_for_child_scripts_and_passes_hash():
+    content = (PROJECT_ROOT / "scripts" / "run_post_download.sh").read_text(encoding="utf-8")
+    assert 'bash "$SCRIPT_DIR/notify_complete.sh" "${1:-Unknown}" ||' in content
+    assert 'bash "$SCRIPT_DIR/delete_completed.sh" "${2:-}"' in content
+
+
+def test_delete_completed_can_target_single_torrent_without_jq():
+    content = (PROJECT_ROOT / "scripts" / "delete_completed.sh").read_text(encoding="utf-8")
+    assert 'TARGET_HASH="${1:-}"' in content
+    assert 'if [[ -n "$TARGET_HASH" ]]; then' in content
+    assert 'completed_hashes="$TARGET_HASH"' in content
+    assert 'command -v jq' in content

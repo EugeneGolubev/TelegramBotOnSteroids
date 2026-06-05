@@ -28,11 +28,14 @@ fi
 HOST="$QB_URL"
 USERNAME="$QB_USER"
 PASSWORD="$QB_PASS"
+TARGET_HASH="${1:-}"
 
-# Tools checks
-if ! command -v jq >/dev/null 2>&1; then
-  echo "jq is required but not installed" >&2
-  exit 1
+# jq is only needed for the compatibility path that scans all completed torrents.
+if [[ -z "$TARGET_HASH" ]]; then
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "jq is required but not installed when no torrent hash is passed" >&2
+    exit 1
+  fi
 fi
 
 # Temp cookie file with cleanup
@@ -42,8 +45,12 @@ trap 'rm -f "$COOKIE_FILE"' EXIT
 # Authenticate
 curl -fsS -c "$COOKIE_FILE" -d "username=$USERNAME&password=$PASSWORD" "$HOST/api/v2/auth/login" >/dev/null
 
-# Get completed torrents and delete them (but keep files)
-completed_hashes=$(curl -fsS -b "$COOKIE_FILE" "$HOST/api/v2/torrents/info" | jq -r '.[] | select(.progress == 1.0) | .hash')
+if [[ -n "$TARGET_HASH" ]]; then
+  completed_hashes="$TARGET_HASH"
+else
+  # Get completed torrents and delete them (but keep files).
+  completed_hashes=$(curl -fsS -b "$COOKIE_FILE" "$HOST/api/v2/torrents/info" | jq -r '.[] | select(.progress == 1.0) | .hash')
+fi
 
 if [[ -z "$completed_hashes" ]]; then
   echo "No completed torrents found."
@@ -52,7 +59,7 @@ fi
 
 while read -r hash; do
   [[ -z "$hash" ]] && continue
-  echo "😏 Torrent completed: $hash — giving it 15 seconds before deletion..."
+  echo "😏 Torrent completed: $hash — giving it ${QBT_DELETE_DELAY:-15} seconds before deletion..."
   sleep "${QBT_DELETE_DELAY:-15}"
   echo "🔥 Deleting: $hash"
   curl -fsS -X POST -b "$COOKIE_FILE" \

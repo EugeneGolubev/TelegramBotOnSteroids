@@ -115,6 +115,34 @@ docker compose --profile updates up -d
 
 The qBittorrent Web UI is exposed on `QB_WEBUI_PORT` through the `vpn` service. Persistent service data is stored under `data/`. Downloads are mounted from `DOWNLOADS_HOST_PATH` on the host into `DOWNLOADS_PATH` inside the containers; by default this is `./downloads` on the host and `/downloads` in containers. Both `data/` and the default `downloads/` folder are ignored by git.
 
+When changing VPN settings in `.env`, recreate the affected containers so Docker Compose injects the new environment:
+
+```bash
+docker compose up -d --force-recreate vpn qbittorrent
+docker compose logs --tail=120 vpn | grep -Ei 'wireguard|openvpn|proton|port forwarding'
+```
+
+Rebuilding is not needed for `.env` changes. Use `docker compose up -d --build` only after changing the `Dockerfile`, Python dependencies, or bot code that should be baked into the image.
+
+## Proton VPN Notes
+
+For Proton VPN, OpenVPN works but WireGuard is usually the faster option, especially on Raspberry Pi hardware. Generate a Proton manual WireGuard config with **NAT-PMP (Port Forwarding)** enabled if you want better torrent peer connectivity. Map the generated config into `.env` like this:
+
+```env
+VPN_PROVIDER=protonvpn
+VPN_TYPE=wireguard
+VPN_WIREGUARD_PRIVATE_KEY=<Interface PrivateKey>
+VPN_WIREGUARD_ADDRESSES=<Interface Address, for example 10.2.0.2/32>
+VPN_PORT_FORWARDING=on
+VPN_PORT_FORWARDING_PROVIDER=protonvpn
+```
+
+`VPN_USERNAME` and `VPN_PASSWORD` are for OpenVPN credentials; they are not the WireGuard private key or address. Treat `VPN_WIREGUARD_PRIVATE_KEY` like a password and never commit the real value.
+
+If Gluetun starts correctly with WireGuard, the VPN logs should mention `[wireguard]`, not `[openvpn]`. If the logs still show OpenVPN after editing `.env`, force-recreate the services as shown above and verify you are running the command from the Linux host's project folder.
+
+Gluetun writes Proton's forwarded port to `VPN_PORT_FORWARDING_STATUS_FILE`, which defaults to `/tmp/gluetun/forwarded_port`. To make qBittorrent automatically use that port, set `VPN_PORT_FORWARDING_UP_COMMAND`; qBittorrent's Web UI must allow localhost access for that command to work.
+
 qBittorrent categories control the final media subfolders:
 
 ```env
@@ -136,7 +164,7 @@ Default Save Path: /downloads
 
 If using manual torrent management instead, enable **Use Category paths in Manual Mode**.
 
-qBittorrent's completion hook should run `/scripts/run_post_download.sh "%N"`. The hook sends the optional Telegram notification and deletes completed torrent entries while keeping downloaded files.
+qBittorrent's completion hook should run `bash /scripts/run_post_download.sh "%N" "%I"`. The hook sends the optional Telegram notification and deletes the completed torrent entry while keeping downloaded files.
 
 ## Indexers
 

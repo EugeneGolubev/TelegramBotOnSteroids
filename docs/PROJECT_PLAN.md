@@ -93,6 +93,7 @@ Implementation notes:
 - `watchtower` is behind the `updates` profile.
 - qBittorrent has no direct published ports because it shares the VPN container network namespace.
 - VPN settings are placeholder-friendly and currently target Gluetun; the user must fill provider/protocol-specific values in `.env`.
+- Proton VPN speed tuning is documented: prefer WireGuard over OpenVPN, use Proton manual WireGuard `PrivateKey`/`Address` values rather than OpenVPN credentials, enable NAT-PMP port forwarding when needed, and force-recreate `vpn`/`qbittorrent` after `.env` changes.
 - `DOWNLOADS_HOST_PATH` controls the host download mount while containers use `/downloads`.
 - qBittorrent receives the environment needed by post-download hooks, including `QB_AUTORUN_QB_URL`, qBittorrent credentials, Telegram notification settings, and `QBT_DELETE_DELAY`.
 

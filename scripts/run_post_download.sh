@@ -15,11 +15,11 @@ log() {
   fi
 }
 
-"$SCRIPT_DIR/notify_complete.sh" "${1:-Unknown}" || log "[run_post_download] Notification failed for '${1:-Unknown}'"
+bash "$SCRIPT_DIR/notify_complete.sh" "${1:-Unknown}" || log "[run_post_download] Notification failed for '${1:-Unknown}'"
 
 # Optional: Wait for file to be fully flushed
 sleep 10
 
-"$SCRIPT_DIR/delete_completed.sh"
+bash "$SCRIPT_DIR/delete_completed.sh" "${2:-}"
 
 log "[run_post_download] Finished ${1:-Unknown}"

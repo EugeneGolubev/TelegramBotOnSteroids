@@ -70,10 +70,41 @@ VPN values are Gluetun-oriented placeholders:
 - `VPN_PASSWORD`
 - `VPN_WIREGUARD_PRIVATE_KEY`
 - `VPN_WIREGUARD_ADDRESSES`
+- `VPN_WIREGUARD_MTU`
 - `VPN_SERVER_COUNTRIES`
 - `VPN_FIREWALL_OUTBOUND_SUBNETS`
+- `VPN_PORT_FORWARDING`
+- `VPN_PORT_FORWARDING_PROVIDER`
+- `VPN_PORT_FORWARDING_STATUS_FILE`
+- `VPN_PORT_FORWARDING_UP_COMMAND`
 
 Only fill values that match the selected VPN provider and protocol. Do not commit the real `.env`.
+
+For Proton VPN, WireGuard is the preferred speed path. `VPN_USERNAME` and `VPN_PASSWORD` are OpenVPN credentials. They are not used as `VPN_WIREGUARD_PRIVATE_KEY` or `VPN_WIREGUARD_ADDRESSES`; those values come from a Proton manual WireGuard config:
+
+```ini
+[Interface]
+PrivateKey = ...
+Address = 10.2.0.2/32
+```
+
+If Proton NAT-PMP port forwarding is enabled in the generated WireGuard config, set:
+
+```env
+VPN_PORT_FORWARDING=on
+VPN_PORT_FORWARDING_PROVIDER=protonvpn
+```
+
+Gluetun writes the active forwarded port to `VPN_PORT_FORWARDING_STATUS_FILE`. If `VPN_PORT_FORWARDING_UP_COMMAND` is configured to update qBittorrent, qBittorrent must allow Web UI access from localhost because it shares the VPN container network namespace.
+
+After changing `.env`, recreate the affected containers rather than rebuilding images:
+
+```bash
+docker compose up -d --force-recreate vpn qbittorrent
+docker compose logs --tail=120 vpn | grep -Ei 'wireguard|openvpn|proton|port forwarding'
+```
+
+Use `docker compose up -d --build` only when the bot image itself changed, such as after editing the `Dockerfile`, Python dependencies, or application code that should be baked into the image.
 
 ## Naming Guidelines
 

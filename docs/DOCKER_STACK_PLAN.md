@@ -46,6 +46,8 @@ Selected initial image:
 - `qmcgaw/gluetun:latest`
 - This keeps the stack provider/protocol-flexible while the real VPN provider is still an environment-specific choice.
 - Fill Gluetun-compatible values in `.env`, such as `VPN_PROVIDER`, `VPN_TYPE`, `VPN_USERNAME`, `VPN_PASSWORD`, or WireGuard keys.
+- For Proton VPN, prefer WireGuard for speed. `VPN_USERNAME` and `VPN_PASSWORD` are OpenVPN credentials; WireGuard uses the `PrivateKey` and `Address` values from a Proton manual WireGuard config.
+- If Proton NAT-PMP port forwarding is enabled in the WireGuard config, set `VPN_PORT_FORWARDING=on` and `VPN_PORT_FORWARDING_PROVIDER=protonvpn`. Gluetun can write the forwarded port to `VPN_PORT_FORWARDING_STATUS_FILE` and optionally run `VPN_PORT_FORWARDING_UP_COMMAND` to sync qBittorrent's listening port.
 
 ### qbittorrent
 
@@ -72,7 +74,8 @@ Operations:
 - Set `When Category Save Path changed` to `Relocate torrent`.
 - Keep `Default Save Path` as `/downloads`.
 - If using manual torrent management, enable `Use Category paths in Manual Mode`.
-- qBittorrent completion hooks can run `/scripts/run_post_download.sh "%N"`.
+- If using automatic VPN port forwarding sync, allow qBittorrent Web UI access from localhost so Gluetun can call the qBittorrent API from the shared network namespace.
+- qBittorrent completion hooks can run `bash /scripts/run_post_download.sh "%N" "%I"`.
 - The hook deletes completed torrent entries with `deleteFiles=false`, so downloaded files remain in their category folders.
 
 Selected initial image:
@@ -155,6 +158,7 @@ Current Compose state:
 - `docker-compose.yml` implements these profiles.
 - qBittorrent uses `network_mode: service:vpn`.
 - qBittorrent Web UI and torrent ports are published on the `vpn` service because qBittorrent shares that network namespace.
+- VPN `.env` changes require container recreation, not image rebuilds. Use `docker compose up -d --force-recreate vpn qbittorrent`, then inspect VPN logs for `[wireguard]` or `[openvpn]`.
 
 ## Network Model
 
