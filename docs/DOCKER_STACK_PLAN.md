@@ -67,6 +67,11 @@ Persistence:
 
 Operations:
 
+- In qBittorrent Web UI, set `Options > Downloads > Saving Management > Default Torrent Management Mode` to `Automatic`.
+- Set `When Torrent Category changed` to `Relocate torrent`.
+- Set `When Category Save Path changed` to `Relocate torrent`.
+- Keep `Default Save Path` as `/downloads`.
+- If using manual torrent management, enable `Use Category paths in Manual Mode`.
 - qBittorrent completion hooks can run `/scripts/run_post_download.sh "%N"`.
 - The hook deletes completed torrent entries with `deleteFiles=false`, so downloaded files remain in their category folders.
 

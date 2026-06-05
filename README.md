@@ -125,6 +125,17 @@ QB_CATEGORY_OTHERS_PATH=/downloads/Others
 
 For example, with `DOWNLOADS_HOST_PATH=D:/Downloads` and `QB_CATEGORY_MOVIE_PATH=/downloads/Movies`, movies are saved under `D:\Downloads\Movies`. On the Raspberry Pi, `DOWNLOADS_HOST_PATH=/var/lib/plexmediaserver/Library/plex_media` maps `/downloads/TV` to `/var/lib/plexmediaserver/Library/plex_media/TV`.
 
+In qBittorrent Web UI, configure **Options > Downloads > Saving Management** so category paths are actually used:
+
+```text
+Default Torrent Management Mode: Automatic
+When Torrent Category changed: Relocate torrent
+When Category Save Path changed: Relocate torrent
+Default Save Path: /downloads
+```
+
+If using manual torrent management instead, enable **Use Category paths in Manual Mode**.
+
 qBittorrent's completion hook should run `/scripts/run_post_download.sh "%N"`. The hook sends the optional Telegram notification and deletes completed torrent entries while keeping downloaded files.
 
 ## Indexers
