@@ -77,6 +77,7 @@ VPN values are Gluetun-oriented placeholders:
 - `VPN_PORT_FORWARDING_PROVIDER`
 - `VPN_PORT_FORWARDING_STATUS_FILE`
 - `VPN_PORT_FORWARDING_UP_COMMAND`
+- `VPN_PORT_FORWARDING_DOWN_COMMAND`
 
 Only fill values that match the selected VPN provider and protocol. Do not commit the real `.env`.
 
@@ -93,9 +94,14 @@ If Proton NAT-PMP port forwarding is enabled in the generated WireGuard config, 
 ```env
 VPN_PORT_FORWARDING=on
 VPN_PORT_FORWARDING_PROVIDER=protonvpn
+VPN_PORT_FORWARDING_STATUS_FILE=/tmp/gluetun/forwarded_port
+VPN_PORT_FORWARDING_UP_COMMAND=/bin/sh -c 'wget -qO- --retry-connrefused --post-data "json={\"listen_port\":{{PORT}},\"current_network_interface\":\"{{VPN_INTERFACE}}\",\"current_interface_address\":\"10.2.0.2\",\"random_port\":false,\"upnp\":false}" http://127.0.0.1:8080/api/v2/app/setPreferences'
+VPN_PORT_FORWARDING_DOWN_COMMAND=/bin/sh -c 'wget -qO- --retry-connrefused --post-data "json={\"listen_port\":0,\"current_network_interface\":\"lo\"}" http://127.0.0.1:8080/api/v2/app/setPreferences'
 ```
 
-Gluetun writes the active forwarded port to `VPN_PORT_FORWARDING_STATUS_FILE`. If `VPN_PORT_FORWARDING_UP_COMMAND` is configured to update qBittorrent, qBittorrent must allow Web UI access from localhost because it shares the VPN container network namespace.
+Gluetun writes the active forwarded port to `VPN_PORT_FORWARDING_STATUS_FILE`. The UP command synchronizes qBittorrent's listening port and binds it to the tunnel address; the DOWN command prevents qBittorrent from retaining a stale tunnel binding during reconnects. qBittorrent must allow Web UI access from localhost because it shares the VPN container network namespace.
+
+The example assumes the Proton WireGuard address is `10.2.0.2/32`. Use the actual generated address if it differs. Operational testing showed that setting `current_network_interface=tun0` without `current_interface_address` could save the forwarded port without opening TCP/UDP sockets. Verify the active socket rather than relying only on the Web UI preference.
 
 After changing `.env`, recreate the affected containers rather than rebuilding images:
 

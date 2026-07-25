@@ -135,13 +135,32 @@ VPN_WIREGUARD_PRIVATE_KEY=<Interface PrivateKey>
 VPN_WIREGUARD_ADDRESSES=<Interface Address, for example 10.2.0.2/32>
 VPN_PORT_FORWARDING=on
 VPN_PORT_FORWARDING_PROVIDER=protonvpn
+VPN_PORT_FORWARDING_STATUS_FILE=/tmp/gluetun/forwarded_port
+VPN_PORT_FORWARDING_UP_COMMAND=/bin/sh -c 'wget -qO- --retry-connrefused --post-data "json={\"listen_port\":{{PORT}},\"current_network_interface\":\"{{VPN_INTERFACE}}\",\"current_interface_address\":\"10.2.0.2\",\"random_port\":false,\"upnp\":false}" http://127.0.0.1:8080/api/v2/app/setPreferences'
+VPN_PORT_FORWARDING_DOWN_COMMAND=/bin/sh -c 'wget -qO- --retry-connrefused --post-data "json={\"listen_port\":0,\"current_network_interface\":\"lo\"}" http://127.0.0.1:8080/api/v2/app/setPreferences'
 ```
 
 `VPN_USERNAME` and `VPN_PASSWORD` are for OpenVPN credentials; they are not the WireGuard private key or address. Treat `VPN_WIREGUARD_PRIVATE_KEY` like a password and never commit the real value.
 
 If Gluetun starts correctly with WireGuard, the VPN logs should mention `[wireguard]`, not `[openvpn]`. If the logs still show OpenVPN after editing `.env`, force-recreate the services as shown above and verify you are running the command from the Linux host's project folder.
 
-Gluetun writes Proton's forwarded port to `VPN_PORT_FORWARDING_STATUS_FILE`, which defaults to `/tmp/gluetun/forwarded_port`. To make qBittorrent automatically use that port, set `VPN_PORT_FORWARDING_UP_COMMAND`; qBittorrent's Web UI must allow localhost access for that command to work.
+Gluetun writes Proton's forwarded port to `VPN_PORT_FORWARDING_STATUS_FILE`, which defaults to `/tmp/gluetun/forwarded_port`. The UP command copies the dynamic port into qBittorrent and binds its TCP and UDP sockets to the WireGuard address. The DOWN command moves qBittorrent to loopback while the tunnel is unavailable. In qBittorrent, enable **Web UI > Bypass authentication for clients on localhost** so Gluetun can call the API through their shared network namespace.
+
+The example assumes Proton assigned `Address = 10.2.0.2/32`. If the generated WireGuard config uses another address, use that address in both `VPN_WIREGUARD_ADDRESSES` and `current_interface_address`. Binding only to the `tun0` interface can update qBittorrent's saved port without opening a listening socket; the explicit address avoids that failure.
+
+Do not publish a fixed qBittorrent peer port such as `6881` on the Docker host when using Proton's dynamic port forwarding. Tunnel traffic enters through Gluetun on the provider-assigned port, not through a Docker host mapping. The qBittorrent Web UI remains published through the `vpn` service on port `8080`.
+
+Verify that Proton's forwarded port, qBittorrent's preference, and its active socket all match:
+
+```bash
+docker exec vpn cat /tmp/gluetun/forwarded_port
+docker exec vpn sh -c \
+  'wget -qO- http://127.0.0.1:8080/api/v2/app/preferences | grep -o "\"listen_port\":[0-9]*"'
+docker exec qbittorrent sh -c \
+  'netstat -lntup 2>/dev/null | grep "10.2.0.2"'
+```
+
+The qBittorrent application log is under `/config/qBittorrent/logs/qbittorrent.log`. Torrent download URLs in that log may include Prowlarr API keys, so redact URLs before sharing logs and rotate any exposed key.
 
 qBittorrent categories control the final media subfolders:
 
