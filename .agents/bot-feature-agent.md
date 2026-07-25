@@ -23,5 +23,5 @@ Constraints:
 Expected outputs:
 
 - focused handler changes
-- integration helpers for qBittorrent and Prowlarr/Jackett
+- integration helpers for qBittorrent and Prowlarr
 - tests for command behavior

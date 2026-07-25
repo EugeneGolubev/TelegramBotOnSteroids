@@ -7,7 +7,7 @@ Mission:
 Primary goals:
 
 - Make tests hermetic.
-- Mock Telegram, qBittorrent, Prowlarr, Jackett, VPN, and filesystem side effects where possible.
+- Mock Telegram, qBittorrent, Prowlarr, VPN, and filesystem side effects where possible.
 - Keep tests runnable without Docker when practical.
 - Add Docker validation commands for infrastructure changes.
 

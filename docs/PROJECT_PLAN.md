@@ -2,14 +2,14 @@
 
 ## Phase 0: Documentation and Direction
 
-Status: in progress
+Status: implemented
 
 Goals:
 
 - Capture the Docker Compose architecture decision.
 - Capture the portable configuration policy.
 - Add planning documents for future agents and coding sessions.
-- Keep the old bot code intact until the migration work starts.
+- Keep the migration documented for future maintenance work.
 
 Deliverables:
 
@@ -35,16 +35,15 @@ Planned actions:
 
 1. Audit all config reads in `bot/` and `scripts/`. Done.
 2. Define a single config schema. Done in `bot/config.py`.
-3. Add `.env.example` with all supported keys. Done for current bot, qBittorrent, Prowlarr, Jackett, script hooks, VPN placeholders, and Watchtower.
+3. Add `.env.example` with all supported keys. Done for the bot, qBittorrent, Prowlarr, script hooks, VPN placeholders, and Watchtower.
 4. Update Python config loading to read root `.env`. Done; runtime env vars still take precedence.
 5. Update scripts to read root `.env`. Done; old `bot/.env` and `scripts/.env` remain fallback-only during migration.
-6. Add tests for required and optional settings. Done for config behavior, Jackett fallback, and script env-source ordering.
+6. Add tests for required and optional settings. Done for config behavior and script env-source ordering.
 
 Implementation notes:
 
 - `bot/main.py` validates startup settings through `bot.config.validate_settings`.
 - `bot/torrent.py` reads qBittorrent settings at call time so tests and Compose env changes are respected.
-- `bot/jackett.py` reads env-first settings and uses legacy JSON only as a migration fallback.
 - Validation names missing or invalid keys without printing secret values.
 - The old `/opt/telegrambot/config.json` default has been removed.
 
@@ -73,13 +72,13 @@ Status: implemented as initial Compose stack
 
 Goals:
 
-- Add qBittorrent, Prowlarr, VPN, optional Jackett, and Watchtower.
+- Add qBittorrent, Prowlarr, VPN, and Watchtower.
 - Keep qBittorrent network traffic behind VPN.
 - Persist service configuration and downloads outside containers.
 
 Planned actions:
 
-1. Choose base images for each service. Done: `qmcgaw/gluetun`, LinuxServer qBittorrent/Prowlarr/Jackett, and `containrrr/watchtower`.
+1. Choose base images for each service. Done: `qmcgaw/gluetun`, LinuxServer qBittorrent/Prowlarr, and `containrrr/watchtower`.
 2. Add named services to Compose. Done.
 3. Add volumes under `data/` and `downloads/`. Done.
 4. Route qBittorrent with `network_mode: service:vpn`. Done.
@@ -89,7 +88,6 @@ Planned actions:
 Implementation notes:
 
 - Default services are `telegram-bot`, `vpn`, `qbittorrent`, and `prowlarr`.
-- `jackett` is behind the `legacy-indexer` profile.
 - `watchtower` is behind the `updates` profile.
 - qBittorrent has no direct published ports because it shares the VPN container network namespace.
 - VPN settings are placeholder-friendly and currently target Gluetun; the user must fill provider/protocol-specific values in `.env`.
@@ -100,26 +98,23 @@ Implementation notes:
 
 ## Phase 4: Indexer Migration
 
-Status: implemented for Prowlarr-first search with Jackett fallback
+Status: implemented for Prowlarr search
 
 Goals:
 
-- Prefer Prowlarr as the long-term indexer manager.
-- Keep Jackett only as temporary compatibility if needed.
+- Use Prowlarr as the indexer manager.
 
 Planned actions:
 
 1. Decide whether the bot should talk directly to Prowlarr. Done: the bot uses Prowlarr's JSON search API.
 2. Add a provider abstraction if needed. Done in `bot/indexers.py`.
 3. Update search result normalization. Done; handlers still receive `title`, `size`, `seeders`, `tracker`, and `magnet`.
-4. Add tests for Prowlarr and/or Jackett behavior. Done in `tests/test_indexers.py`.
-5. Remove Jackett from the default stack when no longer needed. Not done; Jackett remains optional through the `legacy-indexer` Compose profile.
+4. Add tests for Prowlarr behavior. Done in `tests/test_indexers.py`.
 
 Implementation notes:
 
-- Prowlarr is selected when `PROWLARR_API_KEY` is present.
-- Jackett is selected when Prowlarr is not configured and Jackett settings are available, including the temporary legacy JSON fallback.
-- `bot.handlers` now imports search through `bot.indexers` instead of directly from `bot.jackett`.
+- `bot.handlers` imports search through `bot.indexers`.
+- Prowlarr is configured with `PROWLARR_API_KEY`.
 - The Prowlarr endpoint is `${PROWLARR_URL}/api/v1/search` with the API key sent in the `X-Api-Key` header.
 - Prowlarr `magnetUrl` and `downloadUrl` results are both accepted by the qBittorrent add flow.
 
@@ -141,9 +136,8 @@ Implementation notes:
 
 - Windows test noise has been reduced: direct shell-script execution tests are skipped on Windows, while static script behavior checks still run.
 - CPU usage tests now cover platforms without `os.getloadavg`, matching Windows behavior.
-- `/status` now reports qBittorrent API health, Prowlarr reachability, Telegram API reachability, and container-safe disk/RAM/CPU information.
+- `/status` now reports qBittorrent API health, Prowlarr reachability, Telegram API reachability, container-safe disk/RAM/CPU information, and Gluetun's live VPN state, public IP, and forwarded port through its internal read-only control API.
 - `/status` no longer relies on host `systemctl` service checks as its primary health signal.
-- Jackett appears in `/status` only when `JACKETT_API_KEY` is configured.
 - The bot ensures qBittorrent category save paths for `Movie`, `TV`, and `Others` before adding torrents.
 - qBittorrent completion hooks can delete completed torrent entries while keeping downloaded files.
 

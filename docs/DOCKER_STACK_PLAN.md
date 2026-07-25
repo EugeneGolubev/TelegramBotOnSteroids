@@ -14,7 +14,7 @@ Purpose:
 
 - Run the custom Python Telegram bot.
 - Talk to qBittorrent API.
-- Talk to Prowlarr by default, with Jackett as a legacy fallback.
+- Talk to Prowlarr's search API.
 
 Networking:
 
@@ -89,8 +89,7 @@ Selected initial image:
 Purpose:
 
 - Preferred long-term indexer manager.
-- Provides Torznab-style indexer endpoints.
-- Used by the bot when `PROWLARR_API_KEY` is configured.
+- Provides the JSON search API used by the bot with `PROWLARR_API_KEY`.
 
 Networking:
 
@@ -104,29 +103,6 @@ Persistence:
 Selected initial image:
 
 - `lscr.io/linuxserver/prowlarr:latest`
-
-### jackett
-
-Purpose:
-
-- Optional compatibility service for the old bot while migration is happening.
-- Used by the bot only when Prowlarr is not configured.
-
-Networking:
-
-- Normal Compose network.
-
-Persistence:
-
-- Config under `data/jackett/`.
-
-Default state:
-
-- Optional profile, not necessarily always enabled.
-
-Selected initial image:
-
-- `lscr.io/linuxserver/jackett:latest`
 
 ### watchtower
 
@@ -152,7 +128,6 @@ Selected initial image:
 Recommended profiles:
 
 - default: `telegram-bot`, `vpn`, `qbittorrent`, `prowlarr`
-- `legacy-indexer`: adds `jackett`
 - `updates`: adds `watchtower`
 
 Current Compose state:
@@ -185,7 +160,6 @@ data/
   vpn/
   qbittorrent/
   prowlarr/
-  jackett/
 downloads/
   Movie/
   TV/
@@ -211,6 +185,5 @@ QB_CATEGORY_OTHERS_PATH=/downloads/Others
 ## Open Decisions
 
 - VPN provider and protocol values for Gluetun.
-- Whether to keep Jackett for the first Docker version or migrate directly to Prowlarr.
 - Whether Watchtower should auto-update or only notify.
 - Whether Plex remains host-installed or becomes part of the Compose stack later.
