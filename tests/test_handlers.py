@@ -85,7 +85,14 @@ async def test_handle_status(monkeypatch):
     })
 
     await handle_status(update, context)
-    update.message.reply_text.assert_awaited()
+    text = update.message.reply_text.await_args.args[0]
+    assert "*📊 System Status*" in text
+    assert "*Services*" in text
+    assert "*Downloads*" in text
+    assert "*🔒 VPN Routing*" in text
+    assert "```" not in text
+    assert "• qBittorrent — ✅ Online" in text
+    assert "↪️ Port forwarding: ✅ 45678" in text
 
 @pytest.mark.asyncio
 async def test_handle_status_reports_compose_api_health_without_systemctl(monkeypatch):
@@ -121,7 +128,7 @@ async def test_handle_status_reports_compose_api_health_without_systemctl(monkey
 
     text = update.message.reply_text.await_args.args[0]
     assert "qBittorrent" in text
-    assert "API:       Online" in text
+    assert "• qBittorrent — ✅ Online" in text
     assert "Prowlarr" in text
     assert "ONLINE" in text
     assert "Jackett" not in text
@@ -130,7 +137,7 @@ async def test_handle_status_reports_compose_api_health_without_systemctl(monkey
 
 
 @pytest.mark.asyncio
-async def test_handle_tstatus_shows_progress_and_download_speed(monkeypatch):
+async def test_handle_tstatus_renders_mobile_friendly_torrent_cards(monkeypatch):
     update = MagicMock()
     update.effective_chat.type = "private"
     update.effective_chat.id = 123
@@ -138,13 +145,26 @@ async def test_handle_tstatus_shows_progress_and_download_speed(monkeypatch):
     update.message.reply_text = AsyncMock()
 
     monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
-    monkeypatch.setattr("bot.handlers.qb_list_torrents", lambda: [{
-        "name": "Example torrent", "state": "downloading", "progress": 0.625,
-        "dlspeed": 1_572_864,
-    }])
+    long_name = "A very long torrent name that should be shortened before it overwhelms the mobile card display"
+    monkeypatch.setattr("bot.handlers.qb_list_torrents", lambda: [
+        {
+            "name": long_name, "state": "downloading", "progress": 0.625,
+            "dlspeed": 1_572_864,
+        },
+        {"name": "Waiting torrent", "state": "queuedDL", "progress": 0},
+        {"name": "Finished torrent", "state": "uploading", "progress": 1},
+    ])
 
     await handle_tstatus(update, MagicMock())
 
     text = update.message.reply_text.await_args.args[0]
-    assert "62.5%" in text
-    assert "1.5 MiB/s" in text
+    assert text.startswith("📋 Torrent Status\n\n")
+    assert "⬇️ Downloading · 62.5%" in text
+    assert "█████████████░░░░░░░  1.5 MiB/s" in text
+    assert "⏳ Queued · 0.0%" in text
+    assert "✅ Completed · 100.0%" in text
+    assert "1 active · 1 queued · 1 completed" in text
+    assert "```" not in text
+    assert "| State" not in text
+    assert long_name not in text
+    assert "…" in text

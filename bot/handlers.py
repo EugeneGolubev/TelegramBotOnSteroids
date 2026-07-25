@@ -152,7 +152,7 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     s = get_settings()
-    qbt_api = "Online" if qb_health() else "Down"
+    qbt_api = "✅ Online" if qb_health() else "❌ Down"
     downloading = paused = completed = 0
     torrents = qb_list_torrents()
     for torrent in torrents:
@@ -179,51 +179,45 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     vpn_state = vpn.get("status")
     if vpn_state == "running":
-        vpn_status = "Running"
+        vpn_status = "✅ Running"
     elif vpn_state:
-        vpn_status = str(vpn_state).capitalize()
+        vpn_status = f"⚠️ {str(vpn_state).capitalize()}"
     else:
-        vpn_status = "Unavailable"
+        vpn_status = "⚪ Unavailable"
 
     peer_port = qb_preferences.get("listen_port")
     peer_port_text = str(peer_port) if isinstance(peer_port, int) and peer_port > 0 else "Unknown"
     forwarded_port = vpn.get("forwarded_port")
-    forwarded_port_text = str(forwarded_port) if forwarded_port else "Not forwarded"
+    forwarded_port_text = f"✅ {forwarded_port}" if forwarded_port else "⚠️ Not forwarded"
     vpn_ip = vpn.get("public_ip") or "Unavailable"
     interface = qb_preferences.get("current_network_interface") or "Default"
 
     jackett_block = ""
     if jackett_status is not None:
         jackett_block = (
-            "=== Jackett ===\n"
-            f"WebUI/API:  {jackett_status}\n\n"
+            f"• Jackett — {jackett_status}\n"
         )
 
     text = (
-        "*System Status*\n"
-        "```\n"
-        "=== qBittorrent ===\n"
-        f"API:       {qbt_api}\n"
-        f"Downloading: {downloading}\n"
-        f"Paused:      {paused}\n"
-        f"Completed:   {completed}\n"
-        f"Pending:     {pending_total}\n\n"
-        "=== VPN / BitTorrent routing ===\n"
-        "qBittorrent route: VPN shared network\n"
-        f"VPN status:  {vpn_status}\n"
-        f"VPN public IP: {vpn_ip}\n"
-        f"qB peer port: {peer_port_text} ({interface})\n"
-        f"VPN forwarded port: {forwarded_port_text}\n\n"
-        "=== Prowlarr ===\n"
-        f"WebUI/API:  {prowlarr_status}\n\n"
+        "*📊 System Status*\n\n"
+        "*Services*\n"
+        f"• qBittorrent — {qbt_api}\n"
+        f"• VPN — {vpn_status}\n"
+        f"• Prowlarr — {prowlarr_status}\n"
         f"{jackett_block}"
-        "=== Telegram Bot ===\n"
-        f"API:       {tg_api}\n\n"
-        "=== System ===\n"
-        f"Disk:      {disk}\n"
-        f"RAM:       {ram}\n"
-        f"CPU:       {cpu}\n"
-        "```"
+        f"• Telegram Bot — {tg_api}\n\n"
+        "*Downloads*\n"
+        f"⬇️ Downloading: {downloading}   ⏸ Paused: {paused}\n"
+        f"✅ Completed: {completed}   ⏳ Pending: {pending_total}\n\n"
+        "*🔒 VPN Routing*\n"
+        "qBittorrent traffic is routed through the VPN.\n"
+        f"🌐 Public IP: `{vpn_ip}`\n"
+        f"🔌 Peer port: `{peer_port_text}` on `{interface}`\n"
+        f"↪️ Port forwarding: {forwarded_port_text}\n\n"
+        "*System*\n"
+        f"💾 {disk}\n"
+        f"🧠 {ram}\n"
+        f"⚙️ {cpu}"
     )
     await update.message.reply_text(text)
     return
@@ -296,16 +290,68 @@ async def handle_tstatus(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No torrents or failed to fetch.")
         return
 
-    msg = "*📋 Torrent Status*\n```"
-    msg += "Name                           | State        | Done   | Download\n"
-    for t in ts:
-        name = (t.get("name") or "")[:30]
-        state = (t.get("state") or "unknown")[:12]
-        progress = min(max(float(t.get("progress", 0) or 0), 0), 1) * 100
-        download_speed = _format_speed(t.get("dlspeed", 0))
-        msg += f"{name:30} | {state:12} | {progress:5.1f}% | {download_speed}\n"
-    msg += "```"
+    active = queued = completed = 0
+    cards = []
+    for torrent in ts:
+        progress = _torrent_progress(torrent.get("progress", 0))
+        state_label, state_emoji, category = _torrent_state(torrent.get("state"), progress)
+        if category == "active":
+            active += 1
+        elif category == "queued":
+            queued += 1
+        elif category == "completed":
+            completed += 1
+
+        card = [
+            _truncate_torrent_name(torrent.get("name")),
+            f"{state_emoji} {state_label} · {progress * 100:.1f}%",
+            _progress_bar(progress),
+        ]
+        if category == "active":
+            card[-1] += f"  {_format_speed(torrent.get('dlspeed', 0))}"
+        cards.append("\n".join(card))
+
+    msg = "📋 Torrent Status\n\n" + "\n\n".join(cards)
+    msg += f"\n\n{active} active · {queued} queued · {completed} completed"
     await update.message.reply_text(msg)
+
+
+def _torrent_progress(value: object) -> float:
+    """Return a qBittorrent progress value clamped to the expected range."""
+    try:
+        return min(max(float(value or 0), 0), 1)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _truncate_torrent_name(value: object, limit: int = 60) -> str:
+    """Keep torrent names readable without letting one card dominate the message."""
+    name = " ".join(str(value or "Unnamed torrent").split()) or "Unnamed torrent"
+    return name if len(name) <= limit else f"{name[:limit - 1].rstrip()}…"
+
+
+def _progress_bar(progress: float, length: int = 20) -> str:
+    """Build a compact Unicode progress bar suitable for Telegram mobile clients."""
+    filled = min(length, int(progress * length + 0.5))
+    return f"{'█' * filled}{'░' * (length - filled)}"
+
+
+def _torrent_state(state: object, progress: float) -> tuple[str, str, str]:
+    """Map qBittorrent states to a readable label, emoji, and summary category."""
+    value = str(state or "").lower()
+    if value in {"error", "missingfiles"}:
+        return "Error", "❌", "other"
+    if progress >= 1:
+        return "Completed", "✅", "completed"
+    if value == "queueddl":
+        return "Queued", "⏳", "queued"
+    if value in {"pauseddl", "pausedup"}:
+        return "Paused", "⏸️", "other"
+    if value == "metadl":
+        return "Fetching metadata", "🔎", "active"
+    if value in {"downloading", "forceddl", "stalleddl"}:
+        return "Downloading", "⬇️", "active"
+    return "Unknown", "❔", "other"
 
 
 def _format_speed(value: object) -> str:
