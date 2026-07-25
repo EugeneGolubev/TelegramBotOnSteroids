@@ -193,4 +193,6 @@ Jackett remains available as a legacy fallback when Prowlarr is not configured. 
 
 ## Bot Status
 
-The `/status` command is being updated for the Docker stack. It now reports qBittorrent API health, Prowlarr reachability, Telegram API reachability, and container-safe disk/RAM/CPU information. Jackett is shown only when configured.
+Telegram's command menu suggests `/status` and `/tstatus` after the bot starts. `/tstatus` shows each torrent's state, download progress, and current download speed. `/status` reports qBittorrent API health, the VPN route and live Gluetun state, qBittorrent's peer listening port, Gluetun's forwarded port, indexer and Telegram reachability, and container-safe disk/RAM/CPU information. Jackett is shown only when configured.
+
+The Compose setup grants the bot read-only access to Gluetun's internal control API on port 8000. That port is deliberately not published on the host; do not publish it unless you separately configure authentication and TLS.

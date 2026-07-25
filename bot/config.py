@@ -26,6 +26,7 @@ class Settings:
     qb_user: str
     qb_pass: str
     qb_category_paths: dict[str, str]
+    vpn_control_url: str
 
     prowlarr_url: str
     prowlarr_api_key: str
@@ -75,6 +76,7 @@ def get_settings() -> Settings:
         "TV": os.getenv("QB_CATEGORY_TV_PATH", f"{downloads_path.rstrip('/')}/TV"),
         "Others": os.getenv("QB_CATEGORY_OTHERS_PATH", f"{downloads_path.rstrip('/')}/Others"),
     }
+    vpn_control_url = os.getenv("VPN_CONTROL_URL", "http://vpn:8000").rstrip("/")
 
     prowlarr_url = os.getenv("PROWLARR_URL", "http://prowlarr:9696").rstrip("/")
     prowlarr_api_key = os.getenv("PROWLARR_API_KEY", "")
@@ -95,6 +97,7 @@ def get_settings() -> Settings:
         qb_user=qb_user,
         qb_pass=qb_pass,
         qb_category_paths=qb_category_paths,
+        vpn_control_url=vpn_control_url,
         prowlarr_url=prowlarr_url,
         prowlarr_api_key=prowlarr_api_key,
         prowlarr_default_indexer=prowlarr_default_indexer,

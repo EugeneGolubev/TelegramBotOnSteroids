@@ -1,0 +1,10 @@
+# This control API is only reachable inside the Docker Compose network.
+# Keep the bot limited to the read-only routes it needs for /status.
+[[roles]]
+name = "telegram-bot-readonly"
+routes = [
+  "GET /v1/vpn/status",
+  "GET /v1/publicip/ip",
+  "GET /v1/portforward",
+]
+auth = "none"

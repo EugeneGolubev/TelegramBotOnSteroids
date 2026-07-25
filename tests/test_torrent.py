@@ -70,6 +70,15 @@ def test_qb_health_accepts_no_content_login_without_sid(monkeypatch):
 
     assert torrent.qb_health() is True
 
+
+def test_qb_get_preferences_returns_api_data(monkeypatch):
+    monkeypatch.setattr(torrent, "_ensure_logged_in", lambda: True)
+    mock_get = MagicMock(return_value=MagicMock(ok=True))
+    mock_get.return_value.json.return_value = {"listen_port": 6881}
+    monkeypatch.setattr(torrent._session, "get", mock_get)
+
+    assert torrent.qb_get_preferences() == {"listen_port": 6881}
+
 def test_qb_list_pending_torrents_filters_properly(monkeypatch):
     test_data = [
         {"state": "metaDL", "progress": 0.0, "added_on": 1, "name": "A"},

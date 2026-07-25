@@ -103,6 +103,19 @@ def qb_health() -> bool:
     except Exception:
         return False
 
+
+def qb_get_preferences() -> dict:
+    """Return qBittorrent preferences, including its peer listening port."""
+    if not _ensure_logged_in():
+        return {}
+    settings = get_settings()
+    try:
+        response = _session.get(f"{settings.qb_url}/api/v2/app/preferences", timeout=5)
+        data = response.json() if response.ok else {}
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
 # --- NEW: pending/not-started helper ---
 PENDING_STATES = {
     "metaDL",

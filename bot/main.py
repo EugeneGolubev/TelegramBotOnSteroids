@@ -1,8 +1,18 @@
 import logging
+from telegram import BotCommand
 from telegram.constants import ParseMode
-from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, CommandHandler, filters, Defaults
+from telegram.ext import Application, ApplicationBuilder, MessageHandler, CallbackQueryHandler, CommandHandler, filters, Defaults
 from bot.handlers import handle_message, handle_category_selection, handle_status, handle_tstatus
 from bot.config import get_settings, validate_settings
+
+
+async def register_bot_commands(application: Application) -> None:
+    """Publish Telegram's command-menu suggestions at application startup."""
+    await application.bot.set_my_commands([
+        BotCommand("status", "Show system and VPN status"),
+        BotCommand("tstatus", "Show torrent progress and speed"),
+    ])
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -12,6 +22,7 @@ if __name__ == "__main__":
         ApplicationBuilder()
         .token(settings.bot_token)
         .defaults(Defaults(parse_mode=ParseMode.MARKDOWN))
+        .post_init(register_bot_commands)
         .build()
     )
     app.add_handler(CommandHandler("status", handle_status))

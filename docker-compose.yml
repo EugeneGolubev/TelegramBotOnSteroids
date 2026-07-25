@@ -13,6 +13,7 @@ services:
       QB_URL: ${QB_URL:-http://vpn:8080}
       QB_USER: ${QB_USER:-}
       QB_PASS: ${QB_PASS:-}
+      VPN_CONTROL_URL: ${VPN_CONTROL_URL:-http://vpn:8000}
       PROWLARR_URL: ${PROWLARR_URL:-http://prowlarr:9696}
       PROWLARR_API_KEY: ${PROWLARR_API_KEY:-}
       PROWLARR_DEFAULT_INDEXER: ${PROWLARR_DEFAULT_INDEXER:-all}
@@ -54,10 +55,12 @@ services:
       VPN_PORT_FORWARDING_STATUS_FILE: ${VPN_PORT_FORWARDING_STATUS_FILE:-/tmp/gluetun/forwarded_port}
       VPN_PORT_FORWARDING_UP_COMMAND: ${VPN_PORT_FORWARDING_UP_COMMAND:-}
       VPN_PORT_FORWARDING_DOWN_COMMAND: ${VPN_PORT_FORWARDING_DOWN_COMMAND:-}
+      HTTP_CONTROL_SERVER_AUTH_CONFIG_FILEPATH: /gluetun/auth/telegram-bot.toml
     ports:
       - "${QB_WEBUI_PORT:-8080}:8080"
     volumes:
       - ./data/vpn:/gluetun
+      - ./config/gluetun-control-auth.toml:/gluetun/auth/telegram-bot.toml:ro
     restart: unless-stopped
 
   qbittorrent:
