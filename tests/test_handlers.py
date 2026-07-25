@@ -1,7 +1,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from bot.handlers import _allowed, handle_message, handle_status
+from bot.handlers import _allowed, handle_message, handle_status, handle_tstatus
 import types
 
 @pytest.fixture(autouse=True)
@@ -77,6 +77,12 @@ async def test_handle_status(monkeypatch):
     monkeypatch.setattr("bot.handlers.get_disk_space", lambda: "42 GB free")
     monkeypatch.setattr("bot.handlers.get_ram_usage", lambda: "1024 MB / 4096 MB")
     monkeypatch.setattr("bot.handlers.get_cpu_usage", lambda: "20.0% (Load: 0.5, 0.2)")
+    monkeypatch.setattr("bot.handlers.get_vpn_info", lambda: {
+        "status": "running", "public_ip": "203.0.113.10", "forwarded_port": 45678,
+    })
+    monkeypatch.setattr("bot.handlers.qb_get_preferences", lambda: {
+        "listen_port": 45678, "current_network_interface": "tun0",
+    })
 
     await handle_status(update, context)
     update.message.reply_text.assert_awaited()
@@ -106,6 +112,10 @@ async def test_handle_status_reports_compose_api_health_without_systemctl(monkey
     monkeypatch.setattr("bot.handlers.get_disk_space", lambda: "42 GB free")
     monkeypatch.setattr("bot.handlers.get_ram_usage", lambda: "1024 MB / 4096 MB")
     monkeypatch.setattr("bot.handlers.get_cpu_usage", lambda: "20.0%")
+    monkeypatch.setattr("bot.handlers.get_vpn_info", lambda: {
+        "status": None, "public_ip": None, "forwarded_port": None,
+    })
+    monkeypatch.setattr("bot.handlers.qb_get_preferences", lambda: {})
 
     await handle_status(update, context)
 
@@ -117,3 +127,24 @@ async def test_handle_status_reports_compose_api_health_without_systemctl(monkey
     assert "Jackett" not in text
     assert "Telegram Bot" in text
     assert "TELEGRAM_OK" in text
+
+
+@pytest.mark.asyncio
+async def test_handle_tstatus_shows_progress_and_download_speed(monkeypatch):
+    update = MagicMock()
+    update.effective_chat.type = "private"
+    update.effective_chat.id = 123
+    update.effective_user.id = 123
+    update.message.reply_text = AsyncMock()
+
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+    monkeypatch.setattr("bot.handlers.qb_list_torrents", lambda: [{
+        "name": "Example torrent", "state": "downloading", "progress": 0.625,
+        "dlspeed": 1_572_864,
+    }])
+
+    await handle_tstatus(update, MagicMock())
+
+    text = update.message.reply_text.await_args.args[0]
+    assert "62.5%" in text
+    assert "1.5 MiB/s" in text

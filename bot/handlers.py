@@ -10,8 +10,15 @@ from bot.utils import (
     check_service, check_url_status, check_telegram_api
 )
 from bot.indexers import search_torrents
-from bot.torrent import qb_health, qb_list_torrents, add_torrent, qb_list_pending_torrents
+from bot.torrent import (
+    add_torrent,
+    qb_get_preferences,
+    qb_health,
+    qb_list_pending_torrents,
+    qb_list_torrents,
+)
 from bot.config import get_settings
+from bot.vpn import get_vpn_info
 
 log = logging.getLogger(__name__)
 
@@ -167,6 +174,23 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     disk = get_disk_space()
     ram = get_ram_usage()
     cpu = get_cpu_usage()
+    vpn = get_vpn_info()
+    qb_preferences = qb_get_preferences()
+
+    vpn_state = vpn.get("status")
+    if vpn_state == "running":
+        vpn_status = "Running"
+    elif vpn_state:
+        vpn_status = str(vpn_state).capitalize()
+    else:
+        vpn_status = "Unavailable"
+
+    peer_port = qb_preferences.get("listen_port")
+    peer_port_text = str(peer_port) if isinstance(peer_port, int) and peer_port > 0 else "Unknown"
+    forwarded_port = vpn.get("forwarded_port")
+    forwarded_port_text = str(forwarded_port) if forwarded_port else "Not forwarded"
+    vpn_ip = vpn.get("public_ip") or "Unavailable"
+    interface = qb_preferences.get("current_network_interface") or "Default"
 
     jackett_block = ""
     if jackett_status is not None:
@@ -184,6 +208,12 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Paused:      {paused}\n"
         f"Completed:   {completed}\n"
         f"Pending:     {pending_total}\n\n"
+        "=== VPN / BitTorrent routing ===\n"
+        "qBittorrent route: VPN shared network\n"
+        f"VPN status:  {vpn_status}\n"
+        f"VPN public IP: {vpn_ip}\n"
+        f"qB peer port: {peer_port_text} ({interface})\n"
+        f"VPN forwarded port: {forwarded_port_text}\n\n"
         "=== Prowlarr ===\n"
         f"WebUI/API:  {prowlarr_status}\n\n"
         f"{jackett_block}"
@@ -267,9 +297,27 @@ async def handle_tstatus(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     msg = "*📋 Torrent Status*\n```"
+    msg += "Name                           | State        | Done   | Download\n"
     for t in ts:
-        name = (t.get('name') or "")[:30]
-        state = t.get('state')
-        msg += f"{name:30} | {state}\n"
+        name = (t.get("name") or "")[:30]
+        state = (t.get("state") or "unknown")[:12]
+        progress = min(max(float(t.get("progress", 0) or 0), 0), 1) * 100
+        download_speed = _format_speed(t.get("dlspeed", 0))
+        msg += f"{name:30} | {state:12} | {progress:5.1f}% | {download_speed}\n"
     msg += "```"
     await update.message.reply_text(msg)
+
+
+def _format_speed(value: object) -> str:
+    """Format a qBittorrent byte-per-second value for a compact status line."""
+    try:
+        speed = max(0, float(value))
+    except (TypeError, ValueError):
+        speed = 0
+
+    units = ("B/s", "KiB/s", "MiB/s", "GiB/s")
+    for unit in units:
+        if speed < 1024 or unit == units[-1]:
+            return f"{speed:.1f} {unit}"
+        speed /= 1024
+    return "0.0 B/s"
