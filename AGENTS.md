@@ -4,11 +4,11 @@
 - The old bot currently runs on a Raspberry Pi 5 with host-installed support tools.
 - The new version should be portable across Raspberry Pi Linux, regular Linux, Windows with Docker Desktop, and macOS where possible.
 - Runtime packaging should use one Docker Compose project with several focused containers, not one monolithic container.
-- The target stack is: `telegram-bot`, `vpn`, `qbittorrent`, `prowlarr`, optional `jackett`, and `watchtower`.
+- The target stack is: `telegram-bot`, `vpn`, `qbittorrent`, `prowlarr`, and `watchtower`.
 - Keep the project movable to another host by storing all persistent data under repo-local ignored folders such as `data/` and `downloads/`.
 
 ## Project Structure & Module Organization
-- `bot/`: Telegram bot code (`main.py`, `handlers.py`, `jackett.py`, `torrent.py`, `utils.py`).
+- `bot/`: Telegram bot code (`main.py`, `handlers.py`, `indexers.py`, `torrent.py`, `utils.py`).
 - `tests/`: Pytest suite covering handlers, indexer integration, torrent integration, and utilities.
 - `scripts/`: Shell helpers currently intended for qBittorrent post-download hooks.
 - `docs/`: Planning and architecture documents for the new Docker-based version.
@@ -32,7 +32,7 @@
 - Framework: Pytest.
 - Name tests `tests/test_*.py`; keep unit tests hermetic by mocking network, filesystem, and process calls.
 - Add or update tests for changed behavior.
-- During Docker work, prefer tests that can run without live Telegram, qBittorrent, Prowlarr, Jackett, or VPN services.
+- During Docker work, prefer tests that can run without live Telegram, qBittorrent, Prowlarr, or VPN services.
 
 ## Configuration & Secrets
 - Use one root `.env` file for environment-specific settings and secrets.
@@ -46,7 +46,6 @@
 - Route qBittorrent through the VPN container.
 - Keep Telegram bot, Prowlarr, and Watchtower on normal service networking unless a specific need says otherwise.
 - Prowlarr is the preferred long-term indexer manager.
-- Jackett may remain as an optional compatibility service while the bot is migrated.
 - Do not rely on `systemctl` from inside containers.
 
 ## Commit & Pull Request Guidelines

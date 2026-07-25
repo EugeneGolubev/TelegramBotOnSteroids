@@ -2,20 +2,19 @@
 
 TelegramBotOnSteroids is being migrated from a Raspberry Pi hosted Telegram torrent bot into a portable Docker Compose stack.
 
-The old bot searched through Jackett and added torrents to qBittorrent. The new direction is to package the bot and its supporting services so the whole setup can move between a Raspberry Pi 5, other Linux hosts, and Windows with Docker Desktop.
+The old bot has been migrated toward a Prowlarr-backed Docker Compose stack so the whole setup can move between a Raspberry Pi 5, other Linux hosts, and Windows with Docker Desktop.
 
 ## Target Stack
 
 - `telegram-bot`: custom Python Telegram bot.
 - `vpn`: VPN network gateway.
 - `qbittorrent`: torrent client routed through the VPN service.
-- `prowlarr`: preferred long-term indexer manager.
-- `jackett`: optional compatibility service while migrating the old bot.
+- `prowlarr`: indexer manager used by the bot.
 - `watchtower`: optional container update helper.
 
 ## Current State
 
-This repository currently contains the old Python bot source plus planning documents for the new Docker-based version.
+This repository contains the bot, its Docker Compose stack, configuration template, and operational documentation.
 
 Start here:
 
@@ -37,7 +36,7 @@ cp .env.example .env
 
 Do not commit real `.env` files.
 
-At startup, the bot validates required Telegram, qBittorrent, and indexer settings by key name only. It does not print secret values. Legacy Jackett JSON config can still be used through `JACKETT_CONFIG_PATH` during migration, but root `.env` is the preferred source.
+At startup, the bot validates required Telegram, qBittorrent, and Prowlarr settings by key name only. It does not print secret values.
 
 ## Legacy Local Development
 
@@ -77,14 +76,13 @@ Shell hook execution tests are skipped on Windows because `.sh` files are not di
 
 ## Current Migration Status
 
-Phase 1 configuration cleanup is complete for the current bot and helper scripts: Python config loading and post-download scripts now prefer the root `.env` file, with narrow compatibility fallbacks for old env/json locations.
+Phase 1 configuration cleanup is complete for the current bot and helper scripts: Python config loading and post-download scripts now prefer the root `.env` file, with narrow compatibility fallbacks for old environment-file locations.
 
 Phase 2 and Phase 3 Docker scaffolding now exists:
 
 - `Dockerfile` builds the Telegram bot image.
 - `docker-compose.yml` defines `telegram-bot`, `vpn`, `qbittorrent`, and `prowlarr` as the default stack.
 - qBittorrent uses `network_mode: service:vpn`, so its Web UI is published through the `vpn` service.
-- `jackett` is available through the `legacy-indexer` profile.
 - `watchtower` is available through the `updates` profile.
 
 ## Docker Compose Usage
@@ -99,12 +97,6 @@ Start the default stack:
 
 ```bash
 docker compose up -d
-```
-
-Start with legacy Jackett compatibility:
-
-```bash
-docker compose --profile legacy-indexer up -d
 ```
 
 Start with Watchtower:
@@ -187,12 +179,10 @@ qBittorrent's completion hook should run `bash /scripts/run_post_download.sh "%N
 
 ## Indexers
 
-The bot now uses a small indexer abstraction. Prowlarr is preferred when `PROWLARR_API_KEY` is set, using Prowlarr's JSON search API at `${PROWLARR_URL}/api/v1/search`. Prowlarr results may provide magnet links or Prowlarr download URLs; both are accepted by qBittorrent.
-
-Jackett remains available as a legacy fallback when Prowlarr is not configured. Existing Jackett search behavior is preserved, including the temporary `JACKETT_CONFIG_PATH` JSON fallback during migration.
+The bot uses Prowlarr's JSON search API at `${PROWLARR_URL}/api/v1/search`, authenticated with `PROWLARR_API_KEY`. Results may provide magnet links or Prowlarr download URLs; both are accepted by qBittorrent.
 
 ## Bot Status
 
-Telegram's command menu suggests `/status` and `/tstatus` after the bot starts. `/tstatus` shows each torrent's state, download progress, and current download speed. `/status` reports qBittorrent API health, the VPN route and live Gluetun state, qBittorrent's peer listening port, Gluetun's forwarded port, indexer and Telegram reachability, and container-safe disk/RAM/CPU information. Jackett is shown only when configured.
+Telegram's command menu suggests `/status` and `/tstatus` after the bot starts. `/tstatus` shows each torrent's state, download progress, and current download speed. `/status` reports qBittorrent API health, the VPN route and live Gluetun state, qBittorrent's peer listening port, Gluetun's forwarded port, Prowlarr and Telegram reachability, and container-safe disk/RAM/CPU information.
 
 The Compose setup grants the bot read-only access to Gluetun's internal control API on port 8000. That port is deliberately not published on the host; do not publish it unless you separately configure authentication and TLS.

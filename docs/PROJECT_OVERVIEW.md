@@ -2,7 +2,7 @@
 
 ## Background
 
-This project started as a Raspberry Pi 5 Telegram torrent bot. The old version runs on a headless Linux Pi and talks to supporting tools that are installed directly on the host, such as qBittorrent and Jackett.
+This project started as a Raspberry Pi 5 Telegram torrent bot. The old version runs on a headless Linux Pi and talks to supporting tools installed directly on the host, such as qBittorrent.
 
 The new version should preserve the useful behavior of the old bot while making the whole setup easier to move, rebuild, update, and test.
 
@@ -22,8 +22,7 @@ The stack should be easy to move to another host by copying the project folder, 
 - `telegram-bot`: custom Python Telegram bot.
 - `vpn`: VPN network gateway used by torrent traffic.
 - `qbittorrent`: torrent client, routed through the VPN service.
-- `prowlarr`: preferred long-term indexer manager.
-- `jackett`: optional compatibility service for the old bot integration.
+- `prowlarr`: indexer manager used by the bot.
 - `watchtower`: optional automatic container updater.
 
 ## Guiding Decisions
@@ -43,6 +42,6 @@ Start by containerizing the current working bot and support stack with minimal b
 
 ## Current Docker State
 
-The repository now includes an initial Docker Compose stack. The default services are `telegram-bot`, `vpn`, `qbittorrent`, and `prowlarr`. Optional profiles add `jackett` for legacy compatibility and `watchtower` for updates.
+The repository includes a Docker Compose stack. The default services are `telegram-bot`, `vpn`, `qbittorrent`, and `prowlarr`; the optional `updates` profile adds `watchtower`.
 
-qBittorrent is routed through the VPN service with `network_mode: service:vpn`, and its Web UI is exposed through the VPN service port mapping.
+qBittorrent is routed through the VPN service with `network_mode: service:vpn`, and its Web UI is exposed through the VPN service port mapping. The bot checks Gluetun's internal, read-only control API for VPN state; that API is intentionally not published on the host.

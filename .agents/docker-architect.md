@@ -13,8 +13,7 @@ Constraints:
 
 - Use several focused containers, not one monolithic image.
 - Keep qBittorrent behind the VPN service.
-- Keep Prowlarr as the preferred long-term indexer manager.
-- Keep Jackett optional for compatibility.
+- Use Prowlarr as the indexer manager.
 - Keep the setup usable on Raspberry Pi Linux and Windows with Docker Desktop.
 
 Expected outputs:
