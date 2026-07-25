@@ -53,10 +53,9 @@ services:
       VPN_PORT_FORWARDING_PROVIDER: ${VPN_PORT_FORWARDING_PROVIDER:-}
       VPN_PORT_FORWARDING_STATUS_FILE: ${VPN_PORT_FORWARDING_STATUS_FILE:-/tmp/gluetun/forwarded_port}
       VPN_PORT_FORWARDING_UP_COMMAND: ${VPN_PORT_FORWARDING_UP_COMMAND:-}
+      VPN_PORT_FORWARDING_DOWN_COMMAND: ${VPN_PORT_FORWARDING_DOWN_COMMAND:-}
     ports:
       - "${QB_WEBUI_PORT:-8080}:8080"
-      - "${QB_TORRENT_PORT:-6881}:6881/tcp"
-      - "${QB_TORRENT_PORT:-6881}:6881/udp"
     volumes:
       - ./data/vpn:/gluetun
     restart: unless-stopped
