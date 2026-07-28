@@ -1,7 +1,15 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from bot.handlers import _allowed, handle_message, handle_media_callback, handle_media_files, handle_status, handle_tstatus
+from bot.handlers import (
+    _allowed,
+    format_torrent_size,
+    handle_message,
+    handle_media_callback,
+    handle_media_files,
+    handle_status,
+    handle_tstatus,
+)
 from bot.media import MediaEntry
 import types
 
@@ -22,6 +30,16 @@ def mock_env(monkeypatch):
 ])
 async def test__allowed_behavior(monkeypatch, chat_type, chat_id, user_id, expected):
     assert _allowed(chat_type, chat_id, user_id) == expected
+
+
+@pytest.mark.parametrize("size_mb, expected", [
+    (999, "999 MB"),
+    (1000, "1 GB"),
+    (1500, "1.5 GB"),
+    (20000, "20 GB"),
+])
+def test_format_torrent_size(size_mb, expected):
+    assert format_torrent_size(size_mb) == expected
 
 @pytest.mark.asyncio
 async def test_handle_message_search(monkeypatch):

@@ -234,7 +234,7 @@ def delete_media_entry(category: str, relative_path: str) -> MediaEntry:
 def format_bytes(value: int) -> str:
     """Format a byte count for a compact Telegram card."""
     size = max(0, float(value))
-    units = ("B", "KiB", "MiB", "GiB", "TiB")
+    units = ("B", "KiB", "MB", "GB", "TiB")
     for unit in units:
         if size < 1024 or unit == units[-1]:
             return f"{size:.1f} {unit}" if unit != "B" else f"{size:.0f} B"
