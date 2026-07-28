@@ -1,7 +1,8 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from bot.handlers import _allowed, handle_message, handle_status, handle_tstatus
+from bot.handlers import _allowed, handle_message, handle_media_callback, handle_media_files, handle_status, handle_tstatus
+from bot.media import MediaEntry
 import types
 
 @pytest.fixture(autouse=True)
@@ -168,3 +169,160 @@ async def test_handle_tstatus_renders_mobile_friendly_torrent_cards(monkeypatch)
     assert "| State" not in text
     assert long_name not in text
     assert "…" in text
+
+
+@pytest.mark.asyncio
+async def test_handle_media_files_shows_category_picker(monkeypatch):
+    update = MagicMock()
+    update.effective_chat.type = "private"
+    update.effective_chat.id = 123
+    update.effective_user.id = 123
+    update.message.reply_text = AsyncMock()
+
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+
+    await handle_media_files(update, MagicMock())
+
+    markup = update.message.reply_text.await_args.kwargs["reply_markup"]
+    callbacks = [
+        button.callback_data
+        for row in markup.inline_keyboard
+        for button in row
+    ]
+    assert callbacks == [
+        "media:category:Movie",
+        "media:category:TV",
+        "media:category:Others",
+    ]
+
+
+def _media_callback_update(data):
+    query = MagicMock()
+    query.data = data
+    query.answer = AsyncMock()
+    query.edit_message_text = AsyncMock()
+    query.message.chat.type = "private"
+    query.message.chat.id = 123
+    query.from_user.id = 123
+
+    update = MagicMock()
+    update.callback_query = query
+    return update, query
+
+
+@pytest.mark.asyncio
+async def test_media_category_callback_renders_cards(monkeypatch):
+    update, query = _media_callback_update("media:category:TV")
+    context = MagicMock()
+    context.user_data = {}
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+    monkeypatch.setattr(
+        "bot.handlers.list_media_entries",
+        lambda category: [
+            MediaEntry("Show.mkv", "Show.mkv", "file", 2048),
+            MediaEntry("Series", "Series", "folder", 4096),
+        ],
+    )
+
+    await handle_media_callback(update, context)
+
+    text = query.edit_message_text.await_args.args[0]
+    assert "Media files" in text
+    assert "Show.mkv" in text
+    assert "Type: File" in text
+    assert "Type: Folder" in text
+    assert "Size: 2.0 KiB" in text
+    assert context.user_data["media_listing"]["category"] == "TV"
+
+
+@pytest.mark.asyncio
+async def test_media_page_callback_renders_next_page(monkeypatch):
+    update, query = _media_callback_update("media:page:testtoken:1")
+    context = MagicMock()
+    context.user_data = {
+        "media_listing": {
+            "token": "testtoken",
+            "category": "Movie",
+            "entries": [
+                MediaEntry(f"item-{index}.mkv", f"item-{index}.mkv", "file", index)
+                for index in range(6)
+            ],
+            "page": 0,
+        }
+    }
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+
+    await handle_media_callback(update, context)
+
+    text = query.edit_message_text.await_args.args[0]
+    assert "Page 2/2" in text
+    assert "item-5.mkv" in text
+    assert "item-0.mkv" not in text
+
+
+@pytest.mark.asyncio
+async def test_media_select_shows_delete_and_cancel(monkeypatch):
+    update, query = _media_callback_update("media:select:testtoken:0")
+    context = MagicMock()
+    context.user_data = {
+        "media_listing": {
+            "token": "testtoken",
+            "category": "Movie",
+            "entries": [MediaEntry("Series", "Series", "folder", 4096)],
+            "page": 0,
+        }
+    }
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+
+    await handle_media_callback(update, context)
+
+    text = query.edit_message_text.await_args.args[0]
+    markup = query.edit_message_text.await_args.kwargs["reply_markup"]
+    callbacks = [
+        button.callback_data
+        for row in markup.inline_keyboard
+        for button in row
+    ]
+    assert "This will permanently delete the folder and all its contents." in text
+    assert callbacks == ["media:delete:testtoken:0", "media:cancel:testtoken:0"]
+
+
+@pytest.mark.asyncio
+async def test_media_delete_refreshes_listing(monkeypatch):
+    update, query = _media_callback_update("media:delete:testtoken:0")
+    context = MagicMock()
+    context.user_data = {
+        "media_listing": {
+            "token": "testtoken",
+            "category": "Movie",
+            "entries": [MediaEntry("Series", "Series", "folder", 4096)],
+            "page": 0,
+        }
+    }
+    deleted = MediaEntry("Series", "Series", "folder", 4096)
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+    delete_mock = MagicMock(return_value=deleted)
+    monkeypatch.setattr("bot.handlers.delete_media_entry", delete_mock)
+    monkeypatch.setattr("bot.handlers.list_media_entries", lambda category: [])
+
+    await handle_media_callback(update, context)
+
+    delete_mock.assert_called_once_with("Movie", "Series")
+    text = query.edit_message_text.await_args.args[0]
+    assert "Deleted folder: Series" in text
+    assert "No files or folders found." in text
+
+
+@pytest.mark.asyncio
+async def test_media_expired_callback_does_not_delete(monkeypatch):
+    update, query = _media_callback_update("media:delete:expired:0")
+    context = MagicMock()
+    context.user_data = {}
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+    delete_mock = MagicMock()
+    monkeypatch.setattr("bot.handlers.delete_media_entry", delete_mock)
+
+    await handle_media_callback(update, context)
+
+    delete_mock.assert_not_called()
+    assert "expired" in query.edit_message_text.await_args.args[0]

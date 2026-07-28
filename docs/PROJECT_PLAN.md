@@ -140,6 +140,8 @@ Implementation notes:
 - `/status` no longer relies on host `systemctl` service checks as its primary health signal.
 - The bot ensures qBittorrent category save paths for `Movie`, `TV`, and `Others` before adding torrents.
 - qBittorrent completion hooks can delete completed torrent entries while keeping downloaded files.
+- `/mediafiles` browses the direct contents of the configured `Movie`, `TV`, and `Others` folders and allows authorized users to delete selected files or recursively delete selected folders.
+- Media deletion uses platform-neutral Python filesystem operations, validates the selected entry beneath its configured category root, and does not follow symbolic links or Windows junctions.
 
 ## Phase 6: Operations
 

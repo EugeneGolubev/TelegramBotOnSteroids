@@ -133,6 +133,8 @@ Prowlarr search uses `${PROWLARR_URL}/api/v1/search` with `PROWLARR_API_KEY` sen
 
 `DOWNLOADS_HOST_PATH` is the host directory mounted into containers. `DOWNLOADS_PATH` is the in-container path and should usually stay `/downloads`. Category paths should also use in-container paths, so the same category config works on Windows, Linux, macOS, and Raspberry Pi hosts.
 
+The Telegram `/mediafiles` command reuses the three category paths to list and remove media. The `telegram-bot` downloads mount must remain read/write. Deleting a folder is recursive and permanent, so keep backups outside the managed media roots when needed.
+
 `QB_AUTORUN_QB_URL` is used only by the qBittorrent completion hook running inside the qBittorrent container. It defaults to `http://127.0.0.1:8080` because qBittorrent can reach its own Web API there.
 
 ## Validation
