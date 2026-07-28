@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from bot.handlers import (
     _allowed,
+    _format_speed,
     format_torrent_size,
     handle_message,
     handle_media_callback,
@@ -40,6 +41,15 @@ async def test__allowed_behavior(monkeypatch, chat_type, chat_id, user_id, expec
 ])
 def test_format_torrent_size(size_mb, expected):
     assert format_torrent_size(size_mb) == expected
+
+
+@pytest.mark.parametrize("speed, expected", [
+    (1024, "1.0 KB/s"),
+    (1024**2, "1.0 MB/s"),
+    (1024**3, "1.0 GB/s"),
+])
+def test_format_speed_uses_short_units(speed, expected):
+    assert _format_speed(speed) == expected
 
 @pytest.mark.asyncio
 async def test_handle_message_search(monkeypatch):
@@ -179,7 +189,7 @@ async def test_handle_tstatus_renders_mobile_friendly_torrent_cards(monkeypatch)
     text = update.message.reply_text.await_args.args[0]
     assert text.startswith("📋 Torrent Status\n\n")
     assert "⬇️ Downloading · 62.5%" in text
-    assert "█████████████░░░░░░░  1.5 MiB/s" in text
+    assert "█████████████░░░░░░░  1.5 MB/s" in text
     assert "⏳ Queued · 0.0%" in text
     assert "✅ Completed · 100.0%" in text
     assert "1 active · 1 queued · 1 completed" in text

@@ -639,7 +639,7 @@ def _format_speed(value: object) -> str:
     except (TypeError, ValueError):
         speed = 0
 
-    units = ("B/s", "KiB/s", "MiB/s", "GiB/s")
+    units = ("B/s", "KB/s", "MB/s", "GB/s")
     for unit in units:
         if speed < 1024 or unit == units[-1]:
             return f"{speed:.1f} {unit}"
