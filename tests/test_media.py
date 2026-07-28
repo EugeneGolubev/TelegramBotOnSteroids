@@ -105,7 +105,12 @@ def test_delete_media_entry_handles_read_only_file(movie_root):
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [(0, "0 B"), (1024, "1.0 KiB"), (1024 * 1024, "1.0 MiB")],
+    [
+        (0, "0 B"),
+        (1024, "1.0 KiB"),
+        (1024 * 1024, "1.0 MB"),
+        (1024 * 1024 * 1024, "1.0 GB"),
+    ],
 )
 def test_format_bytes(value, expected):
     assert format_bytes(value) == expected

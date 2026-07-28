@@ -32,6 +32,16 @@ from bot.vpn import get_vpn_info
 log = logging.getLogger(__name__)
 
 MEDIA_PAGE_SIZE = 5
+MEGABYTES_PER_GIGABYTE = 1000
+
+
+def format_torrent_size(size_mb: int | float) -> str:
+    """Format a torrent size for search result cards."""
+    if size_mb >= MEGABYTES_PER_GIGABYTE:
+        size_gb = size_mb / MEGABYTES_PER_GIGABYTE
+        formatted_gb = f"{size_gb:.2f}".rstrip("0").rstrip(".")
+        return f"{formatted_gb} GB"
+    return f"{size_mb:g} MB"
 
 def _allowed(chat_type: str, chat_id: int, user_id: int) -> bool:
     """Gate all handlers; log why we block."""
@@ -67,7 +77,7 @@ async def send_search_page(msg, context):
         tracker = escape_markdown(str(t.get('tracker', '')), version=1)
         text = (
             f"🎬 *{i+1}. {title}*\n"
-            f"📦 {t['size']} MB | 👥 {t['seeders']} | 🌍 `{tracker}`"
+            f"📦 {format_torrent_size(t['size'])} | 👥 {t['seeders']} | 🌍 `{tracker}`"
         )
         await msg.message.reply_text(
             text,
@@ -629,7 +639,7 @@ def _format_speed(value: object) -> str:
     except (TypeError, ValueError):
         speed = 0
 
-    units = ("B/s", "KiB/s", "MiB/s", "GiB/s")
+    units = ("B/s", "KB/s", "MB/s", "GB/s")
     for unit in units:
         if speed < 1024 or unit == units[-1]:
             return f"{speed:.1f} {unit}"
