@@ -105,7 +105,7 @@ Start with Watchtower:
 docker compose --profile updates up -d
 ```
 
-The qBittorrent Web UI is exposed on `QB_WEBUI_PORT` through the `vpn` service. Persistent service data is stored under `data/`. Downloads are mounted from `DOWNLOADS_HOST_PATH` on the host into `DOWNLOADS_PATH` inside the containers; by default this is `./downloads` on the host and `/downloads` in containers. Both `data/` and the default `downloads/` folder are ignored by git.
+The qBittorrent Web UI is exposed on `QB_WEBUI_PORT` through the `vpn` service. Persistent service data is stored under `data/`. Downloads are mounted from `DOWNLOADS_HOST_PATH` on the host into `DOWNLOADS_PATH` inside the containers; by default this is `./downloads` on the host and `/downloads` in containers. The downloads mount is intentionally read/write for both qBittorrent and the Telegram bot's media-management command. Both `data/` and the default `downloads/` folder are ignored by git.
 
 When changing VPN settings in `.env`, recreate the affected containers so Docker Compose injects the new environment:
 
@@ -181,8 +181,12 @@ qBittorrent's completion hook should run `bash /scripts/run_post_download.sh "%N
 
 The bot uses Prowlarr's JSON search API at `${PROWLARR_URL}/api/v1/search`, authenticated with `PROWLARR_API_KEY`. Results may provide magnet links or Prowlarr download URLs; both are accepted by qBittorrent.
 
-## Bot Status
+## Bot Commands
 
-Telegram's command menu suggests `/status` and `/tstatus` after the bot starts. `/tstatus` shows each torrent's state, download progress, and current download speed. `/status` reports qBittorrent API health, the VPN route and live Gluetun state, qBittorrent's peer listening port, Gluetun's forwarded port, Prowlarr and Telegram reachability, and container-safe disk/RAM/CPU information.
+Telegram's command menu suggests `/status`, `/tstatus`, and `/mediafiles` after the bot starts. `/tstatus` shows each torrent's state, download progress, and current download speed. `/status` reports qBittorrent API health, the VPN route and live Gluetun state, qBittorrent's peer listening port, Gluetun's forwarded port, Prowlarr and Telegram reachability, and container-safe disk/RAM/CPU information.
+
+`/mediafiles` lets an authorized user choose `Movie`, `TV`, or `Others`, then browse the direct contents of that configured media folder. Each entry shows its name, type, and size. Selecting an entry opens `Delete` and `Cancel` actions. Deleting a file is permanent; deleting a folder recursively removes its contents as well. The bot validates every deletion against the selected category root and does not follow symbolic links or Windows junctions.
+
+The media paths are the same qBittorrent category paths configured by `QB_CATEGORY_MOVIE_PATH`, `QB_CATEGORY_TV_PATH`, and `QB_CATEGORY_OTHERS_PATH`. The host folders must be writable by the bot container. On Windows Docker Desktop, grant the project or download drive access in Docker Desktop before using `/mediafiles`.
 
 The Compose setup grants the bot read-only access to Gluetun's internal control API on port 8000. That port is deliberately not published on the host; do not publish it unless you separately configure authentication and TLS.

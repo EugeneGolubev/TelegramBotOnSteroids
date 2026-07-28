@@ -25,6 +25,7 @@ Persistence:
 
 - Optional bot data under `data/bot/`.
 - Reads settings from root `.env`.
+- Uses the downloads bind mount as read/write so `/mediafiles` can browse and remove entries under the configured category paths.
 
 ### vpn
 

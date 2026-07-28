@@ -16,4 +16,5 @@ async def test_register_bot_commands_publishes_status_commands():
     assert [(command.command, command.description) for command in commands] == [
         ("status", "Show system and VPN status"),
         ("tstatus", "Show torrent progress and speed"),
+        ("mediafiles", "List and delete media files"),
     ]

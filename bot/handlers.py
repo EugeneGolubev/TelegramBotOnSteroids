@@ -2,6 +2,7 @@
 import os
 import asyncio
 import logging
+import uuid
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
@@ -18,9 +19,19 @@ from bot.torrent import (
     qb_list_torrents,
 )
 from bot.config import get_settings
+from bot.media import (
+    MEDIA_CATEGORIES,
+    MediaEntry,
+    MediaError,
+    delete_media_entry,
+    format_bytes,
+    list_media_entries,
+)
 from bot.vpn import get_vpn_info
 
 log = logging.getLogger(__name__)
+
+MEDIA_PAGE_SIZE = 5
 
 def _allowed(chat_type: str, chat_id: int, user_id: int) -> bool:
     """Gate all handlers; log why we block."""
@@ -77,6 +88,263 @@ async def send_search_page(msg, context):
         [[InlineKeyboardButton(info, callback_data="noop")]] + ([kb] if kb else [])
     )
     await msg.message.reply_text("Navigate:", reply_markup=markup)
+
+
+def _media_category_markup() -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(category, callback_data=f"media:category:{category}")]
+        for category in MEDIA_CATEGORIES
+    ]
+    return InlineKeyboardMarkup(rows)
+
+
+async def handle_media_files(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Start the media browser from the Telegram command menu."""
+    chat = update.effective_chat
+    user = update.effective_user
+    if not _allowed(chat.type, chat.id, user.id):
+        return
+
+    await update.message.reply_text(
+        "Choose a media folder:",
+        reply_markup=_media_category_markup(),
+    )
+
+
+def _media_kind_label(entry: MediaEntry) -> str:
+    return {
+        "file": "File",
+        "folder": "Folder",
+        "symlink": "Link",
+    }.get(entry.kind, "Item")
+
+
+def _truncate_media_name(value: object, limit: int = 32) -> str:
+    name = " ".join(str(value or "Unnamed item").split()) or "Unnamed item"
+    return name if len(name) <= limit else f"{name[:limit - 1].rstrip()}..."
+
+
+def _media_listing(context: ContextTypes.DEFAULT_TYPE, token: str):
+    listing = context.user_data.get("media_listing")
+    if not isinstance(listing, dict) or listing.get("token") != token:
+        return None
+    return listing
+
+
+def _media_item_from_callback(context, token: str, index: str):
+    listing = _media_listing(context, token)
+    if listing is None:
+        return None, None
+    try:
+        position = int(index)
+    except (TypeError, ValueError):
+        return None, None
+
+    entries = listing.get("entries", [])
+    if not 0 <= position < len(entries):
+        return None, None
+    return listing, entries[position]
+
+
+def _media_action_markup(token: str, index: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Delete", callback_data=f"media:delete:{token}:{index}"),
+            InlineKeyboardButton("Cancel", callback_data=f"media:cancel:{token}:{index}"),
+        ]
+    ])
+
+
+async def _render_media_page(query, context, notice: str | None = None):
+    listing = context.user_data.get("media_listing")
+    if not isinstance(listing, dict):
+        await query.edit_message_text("This media menu expired. Use /mediafiles again.")
+        return
+
+    category = listing.get("category", "Unknown")
+    entries = listing.get("entries", [])
+    page = max(0, int(listing.get("page", 0)))
+    total = len(entries)
+    pages = max(1, (total + MEDIA_PAGE_SIZE - 1) // MEDIA_PAGE_SIZE)
+    page = min(page, pages - 1)
+    listing["page"] = page
+
+    start = page * MEDIA_PAGE_SIZE
+    subset = entries[start:start + MEDIA_PAGE_SIZE]
+    lines = [
+        f"*Media files — {escape_markdown(str(category), version=1)}*",
+        f"Page {page + 1}/{pages} ({total} items)",
+    ]
+    if notice:
+        lines.extend(["", escape_markdown(notice, version=1)])
+
+    keyboard = []
+    if subset:
+        for position, entry in enumerate(subset, start=start):
+            name = escape_markdown(entry.name, version=1)
+            lines.extend([
+                "",
+                f"*{position + 1}. {name}*",
+                f"Type: {_media_kind_label(entry)}",
+                f"Size: {format_bytes(entry.size_bytes)}",
+            ])
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"Select {position + 1}: {_truncate_media_name(entry.name)}",
+                    callback_data=f"media:select:{listing['token']}:{position}",
+                )
+            ])
+    else:
+        lines.extend(["", "No files or folders found."])
+
+    navigation = []
+    if page > 0:
+        navigation.append(
+            InlineKeyboardButton(
+                "Prev",
+                callback_data=f"media:page:{listing['token']}:{page - 1}",
+            )
+        )
+    if page + 1 < pages:
+        navigation.append(
+            InlineKeyboardButton(
+                "Next",
+                callback_data=f"media:page:{listing['token']}:{page + 1}",
+            )
+        )
+    if navigation:
+        keyboard.append(navigation)
+    keyboard.append([
+        InlineKeyboardButton("Choose another folder", callback_data="media:categories")
+    ])
+
+    await query.edit_message_text(
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+
+async def _load_media_category(query, context, category: str, notice: str | None = None):
+    try:
+        entries = await asyncio.to_thread(list_media_entries, category)
+    except MediaError as exc:
+        await query.edit_message_text(
+            f"Could not read {escape_markdown(category, version=1)}: "
+            f"{escape_markdown(str(exc), version=1)}",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Choose another folder", callback_data="media:categories")]
+            ]),
+        )
+        return
+
+    context.user_data["media_listing"] = {
+        "token": uuid.uuid4().hex[:12],
+        "category": category,
+        "entries": entries,
+        "page": 0,
+    }
+    await _render_media_page(query, context, notice=notice)
+
+
+async def handle_media_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle media browsing and destructive actions separately from torrent callbacks."""
+    query = update.callback_query
+    await query.answer()
+    chat = query.message.chat
+    uid = query.from_user.id
+    if not _allowed(chat.type, chat.id, uid):
+        return
+
+    data = query.data or ""
+    if data == "media:categories":
+        await query.edit_message_text(
+            "Choose a media folder:",
+            reply_markup=_media_category_markup(),
+        )
+        return
+
+    if data.startswith("media:category:"):
+        category = data.split(":", 2)[2]
+        if category not in MEDIA_CATEGORIES:
+            await query.edit_message_text("Invalid media folder.")
+            return
+        await _load_media_category(query, context, category)
+        return
+
+    parts = data.split(":")
+    if len(parts) != 4 or parts[0] != "media":
+        await query.edit_message_text("Invalid media selection.")
+        return
+
+    action, token, index_text = parts[1:]
+
+    if action == "page":
+        listing = _media_listing(context, token)
+        if listing is None:
+            await query.edit_message_text("This media menu expired. Use /mediafiles again.")
+            return
+        try:
+            listing["page"] = max(0, int(index_text))
+        except (TypeError, ValueError):
+            await query.edit_message_text("Invalid media page.")
+            return
+        await _render_media_page(query, context)
+        return
+
+    listing, entry = _media_item_from_callback(context, token, index_text)
+    if listing is None or entry is None:
+        await query.edit_message_text("This media menu expired. Use /mediafiles again.")
+        return
+
+    try:
+        index = int(index_text)
+    except (TypeError, ValueError):
+        await query.edit_message_text("Invalid media selection.")
+        return
+
+    if action == "select":
+        warning = "This will permanently delete the folder and all its contents." if entry.kind == "folder" else "This deletion is permanent."
+        text = (
+            f"*{escape_markdown(entry.name, version=1)}*\n"
+            f"Type: {_media_kind_label(entry)}\n"
+            f"Size: {format_bytes(entry.size_bytes)}\n\n"
+            f"{warning}\nDelete this item?"
+        )
+        await query.edit_message_text(
+            text,
+            reply_markup=_media_action_markup(token, index),
+        )
+        return
+
+    if action == "cancel":
+        await _render_media_page(query, context)
+        return
+
+    if action == "delete":
+        category = listing.get("category")
+        try:
+            deleted = await asyncio.to_thread(
+                delete_media_entry,
+                category,
+                entry.relative_path,
+            )
+        except MediaError as exc:
+            await query.edit_message_text(
+                f"Could not delete {escape_markdown(entry.name, version=1)}.\n"
+                f"{escape_markdown(str(exc), version=1)}",
+                reply_markup=_media_action_markup(token, index),
+            )
+            return
+
+        await _load_media_category(
+            query,
+            context,
+            category,
+            notice=f"Deleted {_media_kind_label(deleted).lower()}: {entry.name}",
+        )
+        return
+
+    await query.edit_message_text("Invalid media action.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
