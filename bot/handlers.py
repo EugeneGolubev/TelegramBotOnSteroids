@@ -13,6 +13,7 @@ from bot.utils import (
 from bot.indexers import search_torrents
 from bot.torrent import (
     add_torrent,
+    qb_force_reannounce,
     qb_get_preferences,
     qb_health,
     qb_list_pending_torrents,
@@ -570,6 +571,7 @@ async def handle_tstatus(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     active = queued = completed = 0
     cards = []
+    keyboard = []
     for torrent in ts:
         progress = _torrent_progress(torrent.get("progress", 0))
         state_label, state_emoji, category = _torrent_state(torrent.get("state"), progress)
@@ -589,9 +591,46 @@ async def handle_tstatus(update: Update, context: ContextTypes.DEFAULT_TYPE):
             card[-1] += f"  {_format_speed(torrent.get('dlspeed', 0))}"
         cards.append("\n".join(card))
 
+        if str(torrent.get("state") or "").lower() == "stalleddl":
+            torrent_hash = str(torrent.get("hash") or "").strip()
+            if torrent_hash:
+                torrent_name = _truncate_torrent_name(torrent.get("name"), limit=32)
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"📣 Force Reannounce: {torrent_name}",
+                        callback_data=f"torrent:reannounce:{torrent_hash}",
+                    )
+                ])
+
     msg = "📋 Torrent Status\n\n" + "\n\n".join(cards)
     msg += f"\n\n{active} active · {queued} queued · {completed} completed"
-    await update.message.reply_text(msg)
+    reply_kwargs = {"reply_markup": InlineKeyboardMarkup(keyboard)} if keyboard else {}
+    await update.message.reply_text(msg, **reply_kwargs)
+
+
+async def handle_torrent_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle actions attached to torrent status messages."""
+    query = update.callback_query
+
+    chat = query.message.chat
+    user = query.from_user
+    if not _allowed(chat.type, chat.id, user.id):
+        await query.answer()
+        return
+
+    callback_parts = (query.data or "").split(":", 2)
+    if len(callback_parts) != 3:
+        await query.answer()
+        return
+    _, action, torrent_hash = callback_parts
+    if action != "reannounce" or not torrent_hash:
+        await query.answer()
+        return
+
+    if qb_force_reannounce(torrent_hash):
+        await query.answer("✅ Reannounce requested.")
+    else:
+        await query.answer("❌ Could not force reannounce.", show_alert=True)
 
 
 def _torrent_progress(value: object) -> float:

@@ -79,6 +79,29 @@ def test_qb_get_preferences_returns_api_data(monkeypatch):
 
     assert torrent.qb_get_preferences() == {"listen_port": 6881}
 
+
+def test_qb_force_reannounce_posts_torrent_hash(monkeypatch):
+    monkeypatch.setattr(torrent, "_ensure_logged_in", lambda: True)
+    mock_post = MagicMock(return_value=MagicMock(status_code=200))
+    monkeypatch.setattr(torrent._session, "post", mock_post)
+
+    assert torrent.qb_force_reannounce("a" * 40) is True
+
+    mock_post.assert_called_once_with(
+        "http://127.0.0.1:4545/api/v2/torrents/reannounce",
+        data={"hashes": "a" * 40},
+        timeout=5,
+    )
+
+
+def test_qb_force_reannounce_rejects_empty_hash(monkeypatch):
+    monkeypatch.setattr(torrent, "_ensure_logged_in", lambda: True)
+    mock_post = MagicMock()
+    monkeypatch.setattr(torrent._session, "post", mock_post)
+
+    assert torrent.qb_force_reannounce("") is False
+    mock_post.assert_not_called()
+
 def test_qb_list_pending_torrents_filters_properly(monkeypatch):
     test_data = [
         {"state": "metaDL", "progress": 0.0, "added_on": 1, "name": "A"},
