@@ -8,6 +8,7 @@ from bot.handlers import (
     handle_media_files,
     handle_message,
     handle_status,
+    handle_torrent_callback,
     handle_tstatus,
 )
 from bot.config import get_settings, validate_settings
@@ -38,5 +39,6 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("mediafiles", handle_media_files))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(handle_media_callback, pattern=r"^media:"))
+    app.add_handler(CallbackQueryHandler(handle_torrent_callback, pattern=r"^torrent:"))
     app.add_handler(CallbackQueryHandler(handle_category_selection))
     app.run_polling()

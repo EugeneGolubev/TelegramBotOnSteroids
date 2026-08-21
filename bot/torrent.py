@@ -116,6 +116,24 @@ def qb_get_preferences() -> dict:
     except Exception:
         return {}
 
+
+def qb_force_reannounce(torrent_hash: str) -> bool:
+    """Ask qBittorrent to force tracker reannounce for one torrent."""
+    torrent_hash = str(torrent_hash or "").strip()
+    if not torrent_hash or not _ensure_logged_in():
+        return False
+
+    settings = get_settings()
+    try:
+        response = _session.post(
+            f"{settings.qb_url}/api/v2/torrents/reannounce",
+            data={"hashes": torrent_hash},
+            timeout=5,
+        )
+        return response.status_code in (200, 204)
+    except Exception:
+        return False
+
 # --- NEW: pending/not-started helper ---
 PENDING_STATES = {
     "metaDL",

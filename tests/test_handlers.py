@@ -9,6 +9,7 @@ from bot.handlers import (
     handle_media_callback,
     handle_media_files,
     handle_status,
+    handle_torrent_callback,
     handle_tstatus,
 )
 from bot.media import MediaEntry
@@ -197,6 +198,82 @@ async def test_handle_tstatus_renders_mobile_friendly_torrent_cards(monkeypatch)
     assert "| State" not in text
     assert long_name not in text
     assert "…" in text
+
+
+@pytest.mark.asyncio
+async def test_handle_tstatus_adds_reannounce_button_for_stalled_torrents(monkeypatch):
+    update = MagicMock()
+    update.effective_chat.type = "private"
+    update.effective_chat.id = 123
+    update.effective_user.id = 123
+    update.message.reply_text = AsyncMock()
+
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+    monkeypatch.setattr("bot.handlers.qb_list_torrents", lambda: [
+        {
+            "name": "Stalled torrent",
+            "hash": "a" * 40,
+            "state": "stalledDL",
+            "progress": 0,
+        },
+        {
+            "name": "Downloading torrent",
+            "hash": "b" * 40,
+            "state": "downloading",
+            "progress": 0.5,
+        },
+    ])
+
+    await handle_tstatus(update, MagicMock())
+
+    markup = update.message.reply_text.await_args.kwargs["reply_markup"]
+    assert [
+        button.callback_data
+        for row in markup.inline_keyboard
+        for button in row
+    ] == [f"torrent:reannounce:{'a' * 40}"]
+    assert markup.inline_keyboard[0][0].text == "📣 Force Reannounce: Stalled torrent"
+
+
+@pytest.mark.asyncio
+async def test_handle_torrent_callback_requests_reannounce(monkeypatch):
+    query = MagicMock()
+    query.data = f"torrent:reannounce:{'a' * 40}"
+    query.answer = AsyncMock()
+    query.message.chat.type = "private"
+    query.message.chat.id = 123
+    query.from_user.id = 123
+    update = MagicMock(callback_query=query)
+
+    reannounce = MagicMock(return_value=True)
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+    monkeypatch.setattr("bot.handlers.qb_force_reannounce", reannounce)
+
+    await handle_torrent_callback(update, MagicMock())
+
+    reannounce.assert_called_once_with("a" * 40)
+    assert query.answer.await_args_list[-1].args == ("✅ Reannounce requested.",)
+
+
+@pytest.mark.asyncio
+async def test_handle_torrent_callback_reports_reannounce_failure(monkeypatch):
+    query = MagicMock()
+    query.data = f"torrent:reannounce:{'a' * 40}"
+    query.answer = AsyncMock()
+    query.message.chat.type = "private"
+    query.message.chat.id = 123
+    query.from_user.id = 123
+    update = MagicMock(callback_query=query)
+
+    reannounce = MagicMock(return_value=False)
+    monkeypatch.setattr("bot.handlers._allowed", lambda *a: True)
+    monkeypatch.setattr("bot.handlers.qb_force_reannounce", reannounce)
+
+    await handle_torrent_callback(update, MagicMock())
+
+    reannounce.assert_called_once_with("a" * 40)
+    assert query.answer.await_args_list[-1].args == ("❌ Could not force reannounce.",)
+    assert query.answer.await_args_list[-1].kwargs == {"show_alert": True}
 
 
 @pytest.mark.asyncio
