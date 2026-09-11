@@ -105,6 +105,28 @@ Selected initial image:
 
 - `lscr.io/linuxserver/prowlarr:latest`
 
+### flaresolverr
+
+Purpose:
+
+- Optional browser-based proxy for Prowlarr indexers that return a Cloudflare challenge, such as RuTracker.
+
+Networking:
+
+- Normal Compose network, reachable only as `http://flaresolverr:8191` from other services.
+- No host port mapping. Do not expose this service to the internet.
+- Prowlarr uses it only for indexers that share the proxy's tag.
+
+Operations:
+
+- Start it only when needed with the `cloudflare` Compose profile.
+- In Prowlarr, create a FlareSolverr indexer proxy pointing to `http://flaresolverr:8191`, assign it a tag, and assign the same tag to the affected indexer.
+- Browser-based challenge solving can require substantial memory and cannot handle interactive CAPTCHAs.
+
+Selected initial image:
+
+- `ghcr.io/flaresolverr/flaresolverr:latest`
+
 ### watchtower
 
 Purpose:
@@ -129,6 +151,7 @@ Selected initial image:
 Recommended profiles:
 
 - default: `telegram-bot`, `vpn`, `qbittorrent`, `prowlarr`
+- `cloudflare`: adds `flaresolverr`
 - `updates`: adds `watchtower`
 
 Current Compose state:
@@ -147,6 +170,8 @@ telegram-bot -> qbittorrent API through vpn service published port
 telegram-bot -> prowlarr API on Compose network
 qbittorrent -> internet through vpn
 prowlarr -> internet directly unless routed later
+prowlarr -> flaresolverr on Compose network for tagged Cloudflare-protected indexers
+flaresolverr -> internet directly
 ```
 
 This avoids forcing all services through VPN and keeps the torrent traffic protected.

@@ -22,7 +22,7 @@ Current implementation:
 - `bot/config.py` loads the repo-root `.env` file with `python-dotenv` and does not override already-set runtime environment variables.
 - `bot/main.py` validates startup config before building the Telegram application.
 - `scripts/notify_complete.sh` and `scripts/delete_completed.sh` use runtime environment variables when Compose provides them, then fall back to root `.env`, `bot/.env`, and `scripts/.env`.
-- `docker-compose.yml` uses root `.env` values for the bot, Gluetun VPN gateway, qBittorrent, Prowlarr, and optional Watchtower.
+- `docker-compose.yml` uses root `.env` values for the bot, Gluetun VPN gateway, qBittorrent, Prowlarr, optional FlareSolverr, and optional Watchtower.
 - `bot/indexers.py` uses Prowlarr search with `PROWLARR_API_KEY`.
 - `bot/torrent.py` creates or updates qBittorrent category save paths before adding a torrent.
 
@@ -57,6 +57,7 @@ Common non-secret Compose values:
 - `QB_WEBUI_PORT`
 - `QB_TORRENT_PORT`
 - `PROWLARR_PORT`
+- `FLARESOLVERR_LOG_LEVEL`
 - `WATCHTOWER_CLEANUP`
 - `WATCHTOWER_POLL_INTERVAL`
 

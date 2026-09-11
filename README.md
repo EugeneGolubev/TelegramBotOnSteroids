@@ -10,6 +10,7 @@ The old bot has been migrated toward a Prowlarr-backed Docker Compose stack so t
 - `vpn`: VPN network gateway.
 - `qbittorrent`: torrent client routed through the VPN service.
 - `prowlarr`: indexer manager used by the bot.
+- `flaresolverr`: optional internal proxy for selected Cloudflare-protected Prowlarr indexers.
 - `watchtower`: optional container update helper.
 
 ## Current State
@@ -83,6 +84,7 @@ Phase 2 and Phase 3 Docker scaffolding now exists:
 - `Dockerfile` builds the Telegram bot image.
 - `docker-compose.yml` defines `telegram-bot`, `vpn`, `qbittorrent`, and `prowlarr` as the default stack.
 - qBittorrent uses `network_mode: service:vpn`, so its Web UI is published through the `vpn` service.
+- FlareSolverr is available through the `cloudflare` profile and is not exposed on the host.
 - `watchtower` is available through the `updates` profile.
 
 ## Docker Compose Usage
@@ -104,6 +106,14 @@ Start with Watchtower:
 ```bash
 docker compose --profile updates up -d
 ```
+
+Start the optional Cloudflare helper for Prowlarr:
+
+```bash
+docker compose --profile cloudflare up -d
+```
+
+Then open Prowlarr and create an **Indexer Proxy** under **Settings > Indexers > Indexer Proxies**. Choose **FlareSolverr**, set its URL to `http://flaresolverr:8191`, and give it a tag such as `cloudflare`. Add that same tag to only the indexers that need it, such as RuTracker. The helper has no host port mapping and must not be exposed to the internet. It is a browser-based proxy, so it can use significant memory while solving a challenge and may not work when an indexer requires an interactive CAPTCHA.
 
 The qBittorrent Web UI is exposed on `QB_WEBUI_PORT` through the `vpn` service. Persistent service data is stored under `data/`. Downloads are mounted from `DOWNLOADS_HOST_PATH` on the host into `DOWNLOADS_PATH` inside the containers; by default this is `./downloads` on the host and `/downloads` in containers. The downloads mount is intentionally read/write for both qBittorrent and the Telegram bot's media-management command. Both `data/` and the default `downloads/` folder are ignored by git.
 

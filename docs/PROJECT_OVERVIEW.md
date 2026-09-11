@@ -23,6 +23,7 @@ The stack should be easy to move to another host by copying the project folder, 
 - `vpn`: VPN network gateway used by torrent traffic.
 - `qbittorrent`: torrent client, routed through the VPN service.
 - `prowlarr`: indexer manager used by the bot.
+- `flaresolverr`: optional, internal proxy for selected Cloudflare-protected Prowlarr indexers.
 - `watchtower`: optional automatic container updater.
 
 ## Guiding Decisions
@@ -42,6 +43,6 @@ Start by containerizing the current working bot and support stack with minimal b
 
 ## Current Docker State
 
-The repository includes a Docker Compose stack. The default services are `telegram-bot`, `vpn`, `qbittorrent`, and `prowlarr`; the optional `updates` profile adds `watchtower`.
+The repository includes a Docker Compose stack. The default services are `telegram-bot`, `vpn`, `qbittorrent`, and `prowlarr`; the optional `cloudflare` profile adds FlareSolverr and the `updates` profile adds Watchtower. FlareSolverr is internal-only and is applied in Prowlarr by assigning the same tag to its indexer proxy and a Cloudflare-protected indexer.
 
 qBittorrent is routed through the VPN service with `network_mode: service:vpn`, and its Web UI is exposed through the VPN service port mapping. The bot checks Gluetun's internal, read-only control API for VPN state; that API is intentionally not published on the host.
