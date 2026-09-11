@@ -88,6 +88,7 @@ Planned actions:
 Implementation notes:
 
 - Default services are `telegram-bot`, `vpn`, `qbittorrent`, and `prowlarr`.
+- FlareSolverr is available through the `cloudflare` profile for Prowlarr indexers that require browser-based Cloudflare challenge solving. It is internal-only and attached per indexer with matching Prowlarr tags.
 - `watchtower` is behind the `updates` profile.
 - qBittorrent has no direct published ports because it shares the VPN container network namespace.
 - VPN settings are placeholder-friendly and currently target Gluetun; the user must fill provider/protocol-specific values in `.env`.

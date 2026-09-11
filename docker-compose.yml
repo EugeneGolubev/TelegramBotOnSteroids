@@ -103,6 +103,16 @@ services:
       - ./data/prowlarr:/config
     restart: unless-stopped
 
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    profiles:
+      - cloudflare
+    environment:
+      TZ: ${TZ:-Europe/Warsaw}
+      LOG_LEVEL: ${FLARESOLVERR_LOG_LEVEL:-info}
+    restart: unless-stopped
+
   jackett:
     image: lscr.io/linuxserver/jackett:latest
     container_name: jackett
