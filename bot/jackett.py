@@ -51,7 +51,7 @@ def extract_magnet_from_link(link: str) -> str | None:
         pass
     return None
 
-def search_torrents(query: str, max_results: int = 10) -> list[dict]:
+def search_torrents(query: str, max_results: int = 30) -> list[dict]:
     cfg = load_config()
     idx = cfg.get('default_indexer', '')
     jackett_url = (cfg.get('jackett_url', '') or '').rstrip('/')

@@ -12,6 +12,7 @@ from bot.config import get_settings
 IndexerProvider = Literal["prowlarr", "jackett", "none"]
 
 TORZNAB_NAMESPACE = "{http://torznab.com/schemas/2015/feed}"
+DEFAULT_SEARCH_RESULTS = 30
 
 
 def select_indexer_provider() -> IndexerProvider:
@@ -23,7 +24,7 @@ def select_indexer_provider() -> IndexerProvider:
     return "none"
 
 
-def search_torrents(query: str, max_results: int = 10) -> list[dict]:
+def search_torrents(query: str, max_results: int = DEFAULT_SEARCH_RESULTS) -> list[dict]:
     provider = select_indexer_provider()
     if provider == "prowlarr":
         return search_prowlarr(query, max_results=max_results)
@@ -32,7 +33,9 @@ def search_torrents(query: str, max_results: int = 10) -> list[dict]:
     return []
 
 
-def search_prowlarr(query: str, max_results: int = 10) -> list[dict]:
+def search_prowlarr(
+    query: str, max_results: int = DEFAULT_SEARCH_RESULTS
+) -> list[dict]:
     settings = get_settings()
     prowlarr_url = settings.prowlarr_url.rstrip("/")
     api_key = settings.prowlarr_api_key
@@ -51,7 +54,9 @@ def search_prowlarr(query: str, max_results: int = 10) -> list[dict]:
         return []
 
 
-def normalize_prowlarr_results(items: list[dict], max_results: int = 10) -> list[dict]:
+def normalize_prowlarr_results(
+    items: list[dict], max_results: int = DEFAULT_SEARCH_RESULTS
+) -> list[dict]:
     results = []
     for item in items:
         download_url = item.get("magnetUrl") or item.get("downloadUrl")
@@ -71,7 +76,9 @@ def normalize_prowlarr_results(items: list[dict], max_results: int = 10) -> list
     return results
 
 
-def normalize_torznab_results(xml_text: str, max_results: int = 10) -> list[dict]:
+def normalize_torznab_results(
+    xml_text: str, max_results: int = DEFAULT_SEARCH_RESULTS
+) -> list[dict]:
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError:

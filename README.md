@@ -189,7 +189,7 @@ qBittorrent's completion hook should run `bash /scripts/run_post_download.sh "%N
 
 ## Indexers
 
-The bot uses Prowlarr's JSON search API at `${PROWLARR_URL}/api/v1/search`, authenticated with `PROWLARR_API_KEY`. Results may provide magnet links or Prowlarr download URLs; both are accepted by qBittorrent.
+The bot uses Prowlarr's JSON search API at `${PROWLARR_URL}/api/v1/search`, authenticated with `PROWLARR_API_KEY`. Results may provide magnet links or Prowlarr download URLs; both are accepted by qBittorrent. Each search retains up to 30 usable results and shows them in Telegram pages of 10 results.
 
 ## Bot Commands
 

@@ -32,6 +32,7 @@ from bot.vpn import get_vpn_info
 
 log = logging.getLogger(__name__)
 
+SEARCH_PAGE_SIZE = 10
 MEDIA_PAGE_SIZE = 5
 MEGABYTES_PER_GIGABYTE = 1000
 
@@ -64,7 +65,7 @@ def _allowed(chat_type: str, chat_id: int, user_id: int) -> bool:
 async def send_search_page(msg, context):
     page = context.user_data.get("search_page", 0)
     results = context.user_data.get("search_results", [])
-    per = 5
+    per = SEARCH_PAGE_SIZE
     total = len(results)
     pages = (total + per - 1) // per
     start = page * per
