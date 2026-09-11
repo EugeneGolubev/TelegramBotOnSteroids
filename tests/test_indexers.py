@@ -49,12 +49,12 @@ def test_search_prowlarr_uses_api_search_and_normalizes_results(monkeypatch):
 
     monkeypatch.setattr(indexers.requests, "get", fake_get)
 
-    results = indexers.search_prowlarr("ubuntu", max_results=5)
+    results = indexers.search_prowlarr("Ubuntu 24.04", max_results=5)
 
     assert calls == [
         (
             "http://prowlarr:9696/api/v1/search",
-            {"query": "ubuntu", "type": "search"},
+            {"query": "ubuntu 24.04", "type": "search"},
             8,
         )
     ]
