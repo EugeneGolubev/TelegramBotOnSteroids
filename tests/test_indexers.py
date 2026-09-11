@@ -69,6 +69,20 @@ def test_search_prowlarr_uses_api_search_and_normalizes_results(monkeypatch):
     ]
 
 
+def test_normalize_prowlarr_results_defaults_to_thirty_items():
+    items = [
+        {
+            "title": f"Torrent {number}",
+            "magnetUrl": f"magnet:?xt=urn:btih:{number}",
+        }
+        for number in range(31)
+    ]
+
+    results = indexers.normalize_prowlarr_results(items)
+
+    assert len(results) == 30
+
+
 def test_search_torrents_uses_jackett_fallback(monkeypatch):
     monkeypatch.setenv("PROWLARR_API_KEY", "")
     monkeypatch.setenv("JACKETT_API_KEY", "jackett-key")
