@@ -130,7 +130,7 @@ QB_CATEGORY_TV_PATH=/downloads/TV
 QB_CATEGORY_OTHERS_PATH=/downloads/Others
 ```
 
-Prowlarr search uses `${PROWLARR_URL}/api/v1/search` with `PROWLARR_API_KEY` sent as the `X-Api-Key` header. Search runs across Prowlarr's enabled indexers. The bot retains up to 30 usable results per search and displays 10 results per Telegram page.
+Prowlarr search uses `${PROWLARR_URL}/api/v1/search` with `PROWLARR_API_KEY` sent as the `X-Api-Key` header. The bot lowercases each query immediately before sending it to Prowlarr. Search runs across Prowlarr's enabled indexers. The bot retains up to 30 usable results per search and displays 10 results per Telegram page.
 
 `DOWNLOADS_HOST_PATH` is the host directory mounted into containers. `DOWNLOADS_PATH` is the in-container path and should usually stay `/downloads`. Category paths should also use in-container paths, so the same category config works on Windows, Linux, macOS, and Raspberry Pi hosts.
 

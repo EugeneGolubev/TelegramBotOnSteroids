@@ -43,7 +43,7 @@ def search_prowlarr(
         return []
 
     url = f"{prowlarr_url}/api/v1/search"
-    params = {"query": query, "type": "search"}
+    params = {"query": query.lower(), "type": "search"}
     headers = {"X-Api-Key": api_key}
     try:
         response = requests.get(url, headers=headers, params=params, timeout=8)

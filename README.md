@@ -73,6 +73,18 @@ On Windows, run tests through the local virtual environment:
 .\.venv\Scripts\python.exe -m pytest tests
 ```
 
+If that interpreter fails before pytest starts with `ModuleNotFoundError: No module named 'encodings'`, recreate the virtual environment from a working Python installation:
+
+```powershell
+Remove-Item -Recurse -Force .venv
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pytest tests
+```
+
+If the `py` launcher is unavailable, use the full path to a working `python.exe` instead. If that base interpreter also cannot import `encodings`, repair or reinstall Python before recreating `.venv`.
+
 Shell hook execution tests are skipped on Windows because `.sh` files are not directly executable there; static hook checks still run.
 
 ## Current Migration Status
@@ -189,7 +201,7 @@ qBittorrent's completion hook should run `bash /scripts/run_post_download.sh "%N
 
 ## Indexers
 
-The bot uses Prowlarr's JSON search API at `${PROWLARR_URL}/api/v1/search`, authenticated with `PROWLARR_API_KEY`. Results may provide magnet links or Prowlarr download URLs; both are accepted by qBittorrent. Each search retains up to 30 usable results and shows them in Telegram pages of 10 results.
+The bot uses Prowlarr's JSON search API at `${PROWLARR_URL}/api/v1/search`, authenticated with `PROWLARR_API_KEY`. The query is converted to lowercase immediately before it is sent to Prowlarr, so Telegram keyboard capitalization does not affect indexer matching. Results may provide magnet links or Prowlarr download URLs; both are accepted by qBittorrent. Each search retains up to 30 usable results and shows them in Telegram pages of 10 results.
 
 ## Bot Commands
 
